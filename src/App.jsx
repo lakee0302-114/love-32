@@ -123,17 +123,34 @@ export default function App() {
     // 1. Subscribe to Cloud State Updates
     const unsubState = cloudSync.subscribeState(activeRoom, (remoteState) => {
       if (remoteState && typeof remoteState === 'object') {
-        setState((prev) => ({
-          ...prev,
-          partnerA: { ...prev.partnerA, ...(remoteState.partnerA || {}) },
-          partnerB: { ...prev.partnerB, ...(remoteState.partnerB || {}) },
-          distanceKm: remoteState.distanceKm ?? prev.distanceKm,
-          pet: remoteState.pet ? { ...prev.pet, ...remoteState.pet } : prev.pet,
-          memories: remoteState.memories || prev.memories,
-          loveLetters: remoteState.loveLetters || prev.loveLetters,
-          dailyQuestion: remoteState.dailyQuestion ? { ...prev.dailyQuestion, ...remoteState.dailyQuestion } : prev.dailyQuestion,
-          bucketList: remoteState.bucketList || prev.bucketList,
-        }));
+        setState((prev) => {
+          const incomingPartnerA = remoteState.partnerA || {};
+          const incomingPartnerB = remoteState.partnerB || {};
+
+          // Filter out legacy dummy Kasun / Nethmi from older sessions
+          const cleanPartnerA =
+            incomingPartnerA.name === 'Kasun'
+              ? { ...incomingPartnerA, name: '', isJoined: false }
+              : incomingPartnerA;
+          const cleanPartnerB =
+            incomingPartnerB.name === 'Nethmi' || !incomingPartnerB.isJoined
+              ? { ...incomingPartnerB, name: '', isJoined: false, battery: null, speedKmH: 0 }
+              : incomingPartnerB;
+
+          const isBothJoined = Boolean(cleanPartnerA.isJoined && cleanPartnerB.isJoined);
+
+          return {
+            ...prev,
+            partnerA: { ...prev.partnerA, ...cleanPartnerA },
+            partnerB: { ...prev.partnerB, ...cleanPartnerB },
+            distanceKm: isBothJoined ? (remoteState.distanceKm ?? prev.distanceKm) : null,
+            pet: remoteState.pet ? { ...prev.pet, ...remoteState.pet } : prev.pet,
+            memories: remoteState.memories || prev.memories,
+            loveLetters: remoteState.loveLetters || prev.loveLetters,
+            dailyQuestion: remoteState.dailyQuestion ? { ...prev.dailyQuestion, ...remoteState.dailyQuestion } : prev.dailyQuestion,
+            bucketList: remoteState.bucketList || prev.bucketList,
+          };
+        });
       }
     });
 

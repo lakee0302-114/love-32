@@ -58,7 +58,7 @@ export const initialCoupleState = {
     energy: 85, // 0-100
     costume: 'angel_wings', // 'crown' | 'angel_wings' | 'ribbon' | 'none'
     roomTheme: 'sakura_garden', // 'sakura_garden' | 'cozy_bedroom' | 'cloud_kingdom'
-    lastFedBy: 'Kasun',
+    lastFedBy: 'You',
   },
 
   // Daily Question State
@@ -66,16 +66,16 @@ export const initialCoupleState = {
     id: 1,
     question: "What is your single favorite memory of us together?",
     date: 'Today',
-    partnerAAnswer: "The evening we sat by the beach watching the sunset and talked for 5 hours straight without noticing the time.",
-    partnerBAnswer: "When you surprised me on my birthday with handmade origami hearts and my favorite iced latte 💖",
+    partnerAAnswer: "The evening we sat by the beach watching the sunset and talked for hours.",
+    partnerBAnswer: "",
   },
 
   // Secret Love Letters
   loveLetters: [
     {
       id: 1,
-      sender: 'Kasun',
-      recipient: 'Nethmi',
+      sender: 'You',
+      recipient: 'My Love',
       title: 'Open when you feel lonely or tired',
       preview: 'Whenever you feel like the world is too loud...',
       body: 'Whenever you feel like the world is too loud or tiring, close your eyes and remember: you have someone right here whose heart beats only for you. You are the strongest, sweetest person I know. Sending you a million hugs and kisses!',
@@ -86,11 +86,11 @@ export const initialCoupleState = {
     },
     {
       id: 2,
-      sender: 'Nethmi',
-      recipient: 'Kasun',
-      title: 'Our Next 1-Year Dream',
-      preview: 'Locked until our next milestone...',
-      body: 'I want us to travel to Nuwara Eliya together, stay in a cozy cottage with fireplace, drink hot chocolate under a warm blanket, and dream about our future home. You make every ordinary day magical.',
+      sender: 'My Love',
+      recipient: 'You',
+      title: 'Our Next Dream Milestone',
+      preview: 'Locked until partner joins...',
+      body: 'I want us to travel together, stay in a cozy cottage with fireplace, drink hot chocolate under a warm blanket, and dream about our future. You make every ordinary day magical.',
       unlockCondition: 'Unlocked for you',
       isUnlocked: true,
       createdDate: '2026-11-01',
@@ -163,16 +163,22 @@ export const loadSavedState = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      // Clean legacy placeholder names so unjoined partners don't show fake info
-      if (parsed.partnerA?.name === 'Kasun' && !parsed.partnerA?.isJoined) {
+      // Completely wipe legacy placeholder names (Kasun / Nethmi) from older sessions
+      if (parsed.partnerA?.name === 'Kasun') {
         parsed.partnerA.name = '';
         parsed.partnerA.isJoined = false;
       }
-      if (parsed.partnerB?.name === 'Nethmi' && !parsed.partnerB?.isJoined) {
-        parsed.partnerB.name = '';
-        parsed.partnerB.isJoined = false;
-        parsed.partnerB.status = 'Waiting to connect... ⏳';
-        parsed.partnerB.battery = null;
+      if (parsed.partnerB?.name === 'Nethmi' || !parsed.partnerB?.isJoined) {
+        parsed.partnerB = {
+          ...initialCoupleState.partnerB,
+          name: '',
+          isJoined: false,
+          battery: null,
+          status: 'Waiting to connect... ⏳',
+          speedKmH: 0,
+          activity: 'Not connected',
+          coords: null,
+        };
       }
       return {
         ...initialCoupleState,

@@ -80,8 +80,6 @@ export default function HomeScreen({
   const [newStatus, setNewStatus] = useState(currentUser.status);
   const [newMood, setNewMood] = useState(currentUser.mood);
 
-  // Speed controls for current user
-  const [customSpeed, setCustomSpeed] = useState(currentUser.speedKmH || 0);
   const [isLocating, setIsLocating] = useState(false);
   const [newBucketDream, setNewBucketDream] = useState('');
 
@@ -99,7 +97,7 @@ export default function HomeScreen({
         const lng = pos.coords.longitude.toFixed(3);
         const speed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
         soundManager.playSuccess();
-        onUpdateSpeed(speed, speed > 10 ? 'In Vehicle 🚗' : speed > 2 ? 'Walking 🚶' : 'Resting 🛋️');
+        onUpdateSpeed && onUpdateSpeed(speed, speed > 10 ? 'In Vehicle 🚗' : speed > 2 ? 'Walking 🚶' : 'Resting 🛋️');
         alert(`📍 Real GPS Located!\nCoordinates: ${lat}, ${lng}\nLive Motion: ${speed} km/h`);
       },
       (err) => {
@@ -117,10 +115,6 @@ export default function HomeScreen({
     setNewBucketDream('');
   };
 
-  useEffect(() => {
-    setCustomSpeed(currentUser.speedKmH || 0);
-  }, [currentUser.speedKmH]);
-
   const moodPresets = [
     '🥰 In Love',
     '🥺 Missing You',
@@ -132,42 +126,11 @@ export default function HomeScreen({
     '☕ Coffee Time',
   ];
 
-  const speedPresets = [
-    { label: 'Resting / Home', speed: 0, icon: '🛋️', activity: 'Resting 🛋️' },
-    { label: 'Walking', speed: 4.5, icon: '🚶', activity: 'Walking 🚶' },
-    { label: 'Jogging', speed: 9.0, icon: '🏃', activity: 'Jogging 🏃' },
-    { label: 'Cycling', speed: 20, icon: '🚴', activity: 'Cycling 🚴' },
-    { label: 'In Vehicle', speed: 52, icon: '🚗', activity: 'Driving 🚗' },
-    { label: 'Highway Express', speed: 95, icon: '⚡', activity: 'Express Driving ⚡' },
-  ];
-
   const handleSaveStatus = (e) => {
     e.preventDefault();
     onUpdateMyStatus(newStatus, newMood);
     setShowStatusModal(false);
     soundManager.playChime();
-  };
-
-  const handleApplySpeedPreset = (preset) => {
-    if (onUpdateSpeed) {
-      onUpdateSpeed(currentUserId, preset.speed, preset.activity);
-      soundManager.playKissPop();
-    }
-  };
-
-  const handleCustomSpeedSlider = (e) => {
-    const val = parseFloat(e.target.value);
-    setCustomSpeed(val);
-    let act = 'Resting 🛋️';
-    if (val > 0 && val <= 6) act = 'Walking 🚶';
-    else if (val > 6 && val <= 14) act = 'Jogging 🏃';
-    else if (val > 14 && val <= 30) act = 'Cycling 🚴';
-    else if (val > 30 && val <= 85) act = 'Driving 🚗';
-    else if (val > 85) act = 'Express Speed ⚡';
-
-    if (onUpdateSpeed) {
-      onUpdateSpeed(currentUserId, val, act);
-    }
   };
 
   return (

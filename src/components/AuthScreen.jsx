@@ -39,12 +39,6 @@ function getAccountsDB() {
       name: 'Lakee',
       avatar: '🤴',
     },
-    'nethmi@gmail.com': {
-      email: 'nethmi@gmail.com',
-      password: 'password123',
-      name: 'Nethmi',
-      avatar: '🌸',
-    },
   };
 }
 
@@ -302,7 +296,7 @@ export default function AuthScreen({ onLoginSuccess }) {
       onLoginSuccess({
         role: 'partnerB',
         email: email.trim(),
-        userName: name.trim() || (email.split('@')[0] || 'Nethmi'),
+        userName: name.trim() || (email.split('@')[0] || 'Partner'),
         userAvatar: avatar,
         partnerCode: code,
         myCode: myPairCode,
@@ -417,7 +411,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="E.g. Lakee or Nethmi"
+                      placeholder="E.g. Lakee or My Love"
                       className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-500"
                     />
                   </div>

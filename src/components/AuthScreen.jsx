@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Heart,
   Sparkles,
@@ -14,7 +14,9 @@ import {
   ShieldCheck,
   Flame,
   LogIn,
-  UserPlus
+  UserPlus,
+  Share2,
+  Users
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../utils/audio';
@@ -32,8 +34,21 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [myPairCode] = useState(() => 'LOVE-' + Math.floor(1000 + Math.random() * 9000));
   const [partnerInputCode, setPartnerInputCode] = useState('');
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Check URL query parameters for invite code (?code=LOVE-XXXX or ?room=LOVE-XXXX)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const codeFromUrl = params.get('code') || params.get('room');
+      if (codeFromUrl) {
+        setPartnerInputCode(codeFromUrl.toUpperCase());
+        setAvatar('🌸'); // default partner avatar
+      }
+    } catch (e) {}
+  }, []);
 
   const avatarOptions = ['🤴', '👸', '🌸', '👨‍💻', '🐱', '🐰', '🐻', '🦊', '💖', '✨'];
 
@@ -57,15 +72,14 @@ export default function AuthScreen({ onLoginSuccess }) {
     setTimeout(() => {
       setIsSubmitting(false);
       soundManager.playChime();
-      // Move to Step 2: Partner Code Connection
       setStep(2);
-    }, 800);
+    }, 600);
   };
 
   // Google 1-Click Sign-in Simulation
   const handleGoogleSignIn = () => {
     soundManager.playKissPop();
-    const mockEmail = name ? `${name.toLowerCase().replace(/\s+/g, '')}@gmail.com` : 'user@gmail.com';
+    const mockEmail = name ? `${name.toLowerCase().replace(/\s+/g, '')}@gmail.com` : 'lakee@gmail.com';
     setEmail(mockEmail);
     setPassword('google-auth-token-secured');
     soundManager.playChime();
@@ -79,12 +93,43 @@ export default function AuthScreen({ onLoginSuccess }) {
     setTimeout(() => setCopiedCode(false), 2500);
   };
 
-  // Final Step: Pair with Partner Code
-  const handlePairWithCode = (e) => {
+  const handleCopyInviteLink = () => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://love-32.vercel.app';
+    const link = `${origin}/?code=${myPairCode}`;
+    navigator.clipboard?.writeText(link);
+    soundManager.playKissPop();
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  // 1. Enter as Host (Partner 1) with Own Generated Code
+  const handleHostEnter = () => {
+    setIsSubmitting(true);
+    soundManager.playHeartbeat();
+
+    setTimeout(() => {
+      try {
+        confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+      } catch (err) {}
+      soundManager.playChime();
+
+      onLoginSuccess({
+        role: 'partnerA',
+        email: email.trim(),
+        userName: name.trim() || (email.split('@')[0] || 'Lakee'),
+        userAvatar: avatar,
+        partnerCode: myPairCode,
+        myCode: myPairCode,
+      });
+    }, 800);
+  };
+
+  // 2. Enter as Partner 2 using Partner's Code
+  const handleJoinWithPartnerCode = (e) => {
     e.preventDefault();
     const code = partnerInputCode.trim().toUpperCase();
     if (!code) {
-      setErrorMsg('Please enter your partner’s code');
+      setErrorMsg('Please enter your partner’s code (e.g. LOVE-7788)');
       return;
     }
 
@@ -93,32 +138,19 @@ export default function AuthScreen({ onLoginSuccess }) {
 
     setTimeout(() => {
       try {
-        confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+        confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
       } catch (err) {}
       soundManager.playChime();
 
       onLoginSuccess({
+        role: 'partnerB',
         email: email.trim(),
-        userName: name.trim() || email.split('@')[0],
+        userName: name.trim() || (email.split('@')[0] || 'Nethmi'),
         userAvatar: avatar,
         partnerCode: code,
         myCode: myPairCode,
       });
-    }, 1200);
-  };
-
-  const handleSoloDemo = () => {
-    soundManager.playKissPop();
-    try {
-      confetti({ particleCount: 60, spread: 70 });
-    } catch (err) {}
-    onLoginSuccess({
-      email: email.trim() || 'demo@gmail.com',
-      userName: name.trim() || 'My Love',
-      userAvatar: avatar,
-      partnerCode: myPairCode,
-      myCode: myPairCode,
-    });
+    }, 900);
   };
 
   return (
@@ -176,11 +208,11 @@ export default function AuthScreen({ onLoginSuccess }) {
               </button>
             </div>
 
-            {/* Google 1-Click Button */}
+            {/* Google 1-Click Sign In Button */}
             <button
               type="button"
               onClick={handleGoogleSignIn}
-              className="w-full py-2.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs flex items-center justify-center gap-2 shadow-md transition active:scale-95"
+              className="w-full py-2.5 px-4 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-white font-semibold text-xs flex items-center justify-center gap-2.5 transition active:scale-95 shadow-sm"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -205,88 +237,82 @@ export default function AuthScreen({ onLoginSuccess }) {
 
             <div className="relative flex py-1 items-center">
               <div className="flex-grow border-t border-slate-800" />
-              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase">Or with Email</span>
+              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase">Or use email</span>
               <div className="flex-grow border-t border-slate-800" />
             </div>
 
-            {/* Email & Password Form */}
+            {/* Email + Password Form */}
             <form onSubmit={handleAuthSubmit} className="space-y-3">
-              {/* Nickname & Avatar (on Sign Up) */}
-              {authMode === 'signup' && (
-                <>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Pick Your Avatar:</label>
-                    <div className="flex flex-wrap justify-center gap-1.5 mb-2">
-                      {avatarOptions.map((av) => (
-                        <button
-                          key={av}
-                          type="button"
-                          onClick={() => {
-                            setAvatar(av);
-                            soundManager.playKissPop();
-                          }}
-                          className={`w-9 h-9 rounded-xl text-lg flex items-center justify-center border transition ${
-                            avatar === av
-                              ? 'border-rose-400 bg-rose-500/30 scale-110 shadow'
-                              : 'border-slate-800 bg-slate-950/60 hover:bg-slate-800'
-                          }`}
-                        >
-                          {av}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-slate-300 font-medium block mb-1">Your Name / Nickname:</label>
-                    <div className="relative">
-                      <User size={15} className="absolute left-3.5 top-3 text-slate-400" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="E.g. Alex, Maya, Lakee..."
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs focus:outline-none focus:border-rose-500"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Email Input */}
+              {/* Display Name */}
               <div>
-                <label className="text-xs text-slate-300 font-medium block mb-1">Google / Email Address:</label>
+                <label className="text-xs text-slate-300 font-medium block mb-1">Your Name</label>
                 <div className="relative">
-                  <Mail size={15} className="absolute left-3.5 top-3 text-slate-400" />
+                  <User size={15} className="absolute left-3.5 top-3 text-slate-500" />
                   <input
-                    type="email"
+                    type="text"
                     required
-                    placeholder="name@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs focus:outline-none focus:border-rose-500"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="E.g. Lakee or Nethmi"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-500"
                   />
                 </div>
               </div>
 
-              {/* Password Input */}
+              {/* Avatar Selector */}
               <div>
-                <label className="text-xs text-slate-300 font-medium block mb-1">Password:</label>
+                <label className="text-xs text-slate-300 font-medium block mb-1.5">Choose Avatar</label>
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                  {avatarOptions.map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setAvatar(opt)}
+                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition shrink-0 ${
+                        avatar === opt
+                          ? 'bg-rose-500 border-2 border-white scale-110 shadow'
+                          : 'bg-slate-950/80 border border-slate-800 hover:bg-slate-800'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="text-xs text-slate-300 font-medium block mb-1">Google / Email Address</label>
                 <div className="relative">
-                  <Lock size={15} className="absolute left-3.5 top-3 text-slate-400" />
+                  <Mail size={15} className="absolute left-3.5 top-3 text-slate-500" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="lakee@gmail.com"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-500"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="text-xs text-slate-300 font-medium block mb-1">Password</label>
+                <div className="relative">
+                  <Lock size={15} className="absolute left-3.5 top-3 text-slate-500" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    placeholder="Min 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-10 py-2.5 text-white text-xs focus:outline-none focus:border-rose-500"
+                    placeholder="••••••••"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-10 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-500"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-white"
+                    className="absolute right-3.5 top-2.5 text-slate-400 hover:text-white"
                   >
                     {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
@@ -311,39 +337,74 @@ export default function AuthScreen({ onLoginSuccess }) {
           </div>
         )}
 
-        {/* STEP 2: PARTNER CODE PAIRING */}
+        {/* STEP 2: PARTNER CODE PAIRING (DUAL ROLE CONNECT) */}
         {step === 2 && (
           <div className="space-y-4 animate-fadeIn">
             <div className="text-center">
               <span className="text-xs font-bold text-rose-300 uppercase tracking-wider">Step 2: Connect</span>
               <h3 className="text-base font-bold text-white mt-0.5">Pair with Your Partner</h3>
-              <p className="text-[11px] text-slate-400">Signed in as <span className="text-rose-300 font-semibold">{email}</span></p>
+              <p className="text-[11px] text-slate-400">Signed in as <span className="text-rose-300 font-semibold">{name || email}</span></p>
             </div>
 
-            {/* Your Own Partner Code Box */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-950/40 via-purple-950/40 to-slate-950 border border-rose-500/30 text-center space-y-2">
-              <span className="text-[11px] text-slate-400 uppercase font-semibold">Your Unique Partner Code:</span>
+            {/* OPTION 1: HOST / PARTNER 1 (Generate Code) */}
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-950/40 via-purple-950/40 to-slate-950 border border-rose-500/30 text-center space-y-2.5">
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-amber-300 uppercase font-bold">
+                <Sparkles size={13} />
+                <span>Option A: I am Partner 1 (Host)</span>
+              </div>
               <div className="text-2xl font-black font-mono tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-rose-300 to-pink-300 select-all">
                 {myPairCode}
               </div>
-              <p className="text-[10px] text-slate-400">Share this code with your partner</p>
+              <p className="text-[10px] text-slate-300">Give this code to your partner to connect together</p>
+
+              <div className="flex gap-2 justify-center">
+                <button
+                  type="button"
+                  onClick={handleCopyMyCode}
+                  className="py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-200 text-[11px] font-bold flex items-center gap-1 transition active:scale-95"
+                >
+                  {copiedCode ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                  <span>{copiedCode ? 'Copied!' : 'Copy Code'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopyInviteLink}
+                  className="py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-pink-200 text-[11px] font-bold flex items-center gap-1 transition active:scale-95"
+                  title="Copy direct invite link for WhatsApp"
+                >
+                  {copiedLink ? <Check size={12} className="text-emerald-400" /> : <Share2 size={12} />}
+                  <span>{copiedLink ? 'Link Copied!' : 'WhatsApp Link'}</span>
+                </button>
+              </div>
 
               <button
                 type="button"
-                onClick={handleCopyMyCode}
-                className="mx-auto py-1.5 px-4 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-200 text-xs font-bold flex items-center gap-1.5 transition active:scale-95"
+                onClick={handleHostEnter}
+                disabled={isSubmitting}
+                className="w-full mt-1 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 text-white font-bold text-xs shadow-md shadow-rose-500/20 flex items-center justify-center gap-1.5 transition active:scale-95"
               >
-                {copiedCode ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                <span>{copiedCode ? 'Code Copied!' : 'Copy My Code'}</span>
+                <span>Enter Room as Partner 1 (Host)</span>
+                <ArrowRight size={13} />
               </button>
             </div>
 
-            {/* Input Partner Code Form */}
-            <form onSubmit={handlePairWithCode} className="space-y-3 pt-1">
-              <div>
-                <label className="text-xs text-slate-300 font-medium block mb-1">
-                  Enter Your Partner’s Code:
-                </label>
+            <div className="relative flex py-1 items-center">
+              <div className="flex-grow border-t border-slate-800" />
+              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase font-semibold">Or</span>
+              <div className="flex-grow border-t border-slate-800" />
+            </div>
+
+            {/* OPTION 2: JOIN / PARTNER 2 (Enter Partner's Code) */}
+            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+              <div className="flex items-center gap-1.5 text-[11px] text-sky-300 uppercase font-bold">
+                <Users size={13} />
+                <span>Option B: I am Partner 2 (Join)</span>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Enter the code sent by your partner:
+              </p>
+
+              <form onSubmit={handleJoinWithPartnerCode} className="space-y-2">
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -354,34 +415,19 @@ export default function AuthScreen({ onLoginSuccess }) {
                       setPartnerInputCode(e.target.value.toUpperCase());
                       setErrorMsg('');
                     }}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-2xl px-3.5 py-2.5 text-white font-mono text-xs uppercase focus:outline-none focus:border-rose-500"
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-xs uppercase focus:outline-none focus:border-sky-500"
                   />
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="py-2.5 px-4 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 text-white font-bold text-xs shadow-lg transition active:scale-95"
+                    className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 text-white font-bold text-xs shadow transition active:scale-95"
                   >
-                    {isSubmitting ? 'Pairing...' : 'Connect 💖'}
+                    {isSubmitting ? 'Joining...' : 'Connect 💖'}
                   </button>
                 </div>
-                {errorMsg && <p className="text-[11px] text-rose-400 mt-1">{errorMsg}</p>}
-              </div>
-            </form>
-
-            <div className="relative flex py-1 items-center">
-              <div className="flex-grow border-t border-slate-800" />
-              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase">Or</span>
-              <div className="flex-grow border-t border-slate-800" />
+                {errorMsg && <p className="text-[11px] text-rose-400">{errorMsg}</p>}
+              </form>
             </div>
-
-            {/* Quick Demo Enter Button */}
-            <button
-              type="button"
-              onClick={handleSoloDemo}
-              className="w-full py-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition"
-            >
-              Start in Solo / Demo Mode ✨
-            </button>
           </div>
         )}
       </div>

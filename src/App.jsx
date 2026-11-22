@@ -17,11 +17,8 @@ import {
   broadcastUpdate,
   subscribeToBroadcast,
 } from './utils/storage';
-import {
-  firebaseSync,
-  getSavedRoomCode,
-  saveRoomCode,
-} from './utils/firebase';
+import { cloudSync } from './utils/cloudSync';
+import { getSavedRoomCode, saveRoomCode } from './utils/firebase';
 import { soundManager } from './utils/audio';
 import confetti from 'canvas-confetti';
 
@@ -39,7 +36,7 @@ export default function App() {
 
   const [state, setState] = useState(() => loadSavedState());
   const [activeTab, setActiveTab] = useState('home');
-  const [currentUserId, setCurrentUserId] = useState('partnerA');
+  const [currentUserId, setCurrentUserId] = useState(() => session?.role || 'partnerA');
   const [isMuted, setIsMuted] = useState(false);
   const [activeScreenBomb, setActiveScreenBomb] = useState(null);
   const [quickToast, setQuickToast] = useState(null);
@@ -49,18 +46,36 @@ export default function App() {
   const handleLoginSuccess = (authData) => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
     setSession(authData);
+    const assignedRole = authData.role || 'partnerA';
+    setCurrentUserId(assignedRole);
     setRoomCode(authData.partnerCode);
     saveRoomCode(authData.partnerCode);
 
-    // Update partnerA name and avatar if newly logged in
-    setState((prev) => ({
-      ...prev,
-      partnerA: {
-        ...prev.partnerA,
-        name: authData.userName || prev.partnerA.name,
-        avatar: authData.userAvatar || prev.partnerA.avatar,
-      },
-    }));
+    // Update active user profile
+    let nextState;
+    setState((prev) => {
+      nextState = {
+        ...prev,
+        [assignedRole]: {
+          ...prev[assignedRole],
+          name: authData.userName || prev[assignedRole].name,
+          avatar: authData.userAvatar || prev[assignedRole].avatar,
+        },
+      };
+      return nextState;
+    });
+
+    // Connect to room and announce presence
+    cloudSync.subscribeRoom(authData.partnerCode);
+    cloudSync.pushEvent('PARTNER_JOINED', authData.userName, {
+      role: assignedRole,
+      name: authData.userName,
+      avatar: authData.userAvatar,
+    });
+
+    if (nextState) {
+      cloudSync.updateState(nextState);
+    }
 
     showToast(`Welcome ${authData.userName}! Connected to Room ${authData.partnerCode} 💖`);
   };
@@ -71,13 +86,13 @@ export default function App() {
     showToast('Logged out');
   };
 
-  // Google Firebase Realtime Database: Subscribe to real-time couple state & events
+  // Global Realtime Cloud Sync: Subscribe to real-time couple state & live events
   useEffect(() => {
     if (!session) return;
 
-    // Check if partner shared an invite link with ?room=CODE
+    // Check if partner shared an invite link with ?code=CODE or ?room=CODE
     const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('room');
+    const roomParam = params.get('code') || params.get('room');
     const activeRoom = (roomParam || roomCode || 'LOVE-7788').toUpperCase();
 
     if (roomParam && roomParam.toUpperCase() !== roomCode) {
@@ -86,8 +101,10 @@ export default function App() {
       showToast(`Connected to Partner Code: ${activeRoom} 💖`);
     }
 
-    // 1. Subscribe to Firebase State Updates
-    const unsubState = firebaseSync.subscribeState(activeRoom, (remoteState) => {
+    cloudSync.subscribeRoom(activeRoom);
+
+    // 1. Subscribe to Cloud State Updates
+    const unsubState = cloudSync.subscribeState(activeRoom, (remoteState) => {
       if (remoteState && typeof remoteState === 'object') {
         setState((prev) => ({
           ...prev,
@@ -103,15 +120,35 @@ export default function App() {
       }
     });
 
-    // 2. Subscribe to Firebase Live Events (Heartbeat, Kiss, Screen Bomb)
-    const unsubEvents = firebaseSync.subscribeEvents(activeRoom, (event) => {
+    // 2. Subscribe to Live Events (Heartbeat, Kiss, Screen Bomb, Partner Joined)
+    const unsubEvents = cloudSync.subscribeEvents(activeRoom, (event) => {
       if (!event || !event.type) return;
+      if (event.senderClientId === cloudSync.clientId) return; // Skip own events
 
-      const currentUserName = currentUserId === 'partnerA' ? state.partnerA.name : state.partnerB.name;
-      // Skip if event was sent by this same user session
-      if (event.senderName === currentUserName) return;
+      if (event.type === 'PARTNER_JOINED') {
+        soundManager.playChime();
+        soundManager.triggerVibration([100, 50, 100, 50, 200]);
+        try {
+          confetti({ particleCount: 90, spread: 80 });
+        } catch (e) {}
+        showToast(`🎉 ${event.senderName} just connected with your Partner Code! 💖`);
 
-      if (event.type === 'HEARTBEAT') {
+        // Update the opposite partner profile in our view
+        const otherRole = event.payload?.role || (currentUserId === 'partnerA' ? 'partnerB' : 'partnerA');
+        setState((prev) => {
+          const next = {
+            ...prev,
+            [otherRole]: {
+              ...prev[otherRole],
+              name: event.payload?.name || prev[otherRole].name,
+              avatar: event.payload?.avatar || prev[otherRole].avatar,
+            },
+          };
+          // Broadcast our state back so the newly joined partner receives it immediately
+          cloudSync.updateState(next);
+          return next;
+        });
+      } else if (event.type === 'HEARTBEAT') {
         soundManager.playHeartbeat();
         showToast(`💓 ${event.senderName} sent you a heartbeat!`);
       } else if (event.type === 'KISS') {
@@ -129,7 +166,7 @@ export default function App() {
       if (typeof unsubState === 'function') unsubState();
       if (typeof unsubEvents === 'function') unsubEvents();
     };
-  }, [session, roomCode, currentUserId, state.partnerA.name, state.partnerB.name]);
+  }, [session, roomCode, currentUserId]);
 
   // Sync state to local storage whenever it changes
   useEffect(() => {
@@ -180,7 +217,7 @@ export default function App() {
     showToast(muted ? 'Sound Muted' : 'Sound Enabled 🔔');
   };
 
-  // 1. Send Heartbeat (Firebase Realtime Push)
+  // 1. Send Heartbeat (Cloud Realtime Push)
   const handleSendHeartbeat = () => {
     const currentName = currentUserId === 'partnerA' ? state.partnerA.name : state.partnerB.name;
     const partnerName = currentUserId === 'partnerA' ? state.partnerB.name : state.partnerA.name;
@@ -188,10 +225,10 @@ export default function App() {
     showToast(`💓 Heartbeat sent to ${partnerName}!`);
 
     broadcastUpdate('HEARTBEAT', { senderName: currentName });
-    firebaseSync.pushEvent('HEARTBEAT', currentName, {});
+    cloudSync.pushEvent('HEARTBEAT', currentName, {});
   };
 
-  // 2. Send Kiss (Firebase Realtime Push)
+  // 2. Send Kiss (Cloud Realtime Push)
   const handleSendQuickKiss = () => {
     const currentName = currentUserId === 'partnerA' ? state.partnerA.name : state.partnerB.name;
     const partnerName = currentUserId === 'partnerA' ? state.partnerB.name : state.partnerA.name;
@@ -202,20 +239,20 @@ export default function App() {
     showToast(`💋 Kiss sent to ${partnerName}!`);
 
     broadcastUpdate('KISS', { senderName: currentName });
-    firebaseSync.pushEvent('KISS', currentName, {});
+    cloudSync.pushEvent('KISS', currentName, {});
   };
 
-  // 3. Send Screen Bomb (Firebase Realtime Push)
+  // 3. Send Screen Bomb (Cloud Realtime Push)
   const handleSendScreenBomb = (bombData) => {
     setTimeout(() => {
       setActiveScreenBomb(bombData);
     }, 500);
 
     broadcastUpdate('SCREEN_BOMB', bombData);
-    firebaseSync.pushEvent('SCREEN_BOMB', bombData.senderName, bombData);
+    cloudSync.pushEvent('SCREEN_BOMB', bombData.senderName, bombData);
   };
 
-  // 4. Update Status & Mood (Firebase Realtime Update)
+  // 4. Update Status & Mood (Cloud Realtime Update)
   const handleUpdateMyStatus = (newStatus, newMood) => {
     let nextState;
     setState((prev) => {
@@ -232,12 +269,12 @@ export default function App() {
     });
 
     if (nextState) {
-      firebaseSync.updateState(nextState);
+      cloudSync.updateState(nextState);
     }
     showToast('✨ Status updated!');
   };
 
-  // 5. Update Pet (Firebase Realtime Update)
+  // 5. Update Pet (Cloud Realtime Update)
   const handleUpdatePet = (updatedPet) => {
     let nextState;
     setState((prev) => {
@@ -247,11 +284,11 @@ export default function App() {
     });
 
     if (nextState) {
-      firebaseSync.updateState(nextState);
+      cloudSync.updateState(nextState);
     }
   };
 
-  // 6. Update Distance (Firebase Realtime Update)
+  // 6. Update Distance (Cloud Realtime Update)
   const handleUpdateDistance = (km) => {
     let nextState;
     setState((prev) => {
@@ -261,14 +298,14 @@ export default function App() {
     });
 
     if (nextState) {
-      firebaseSync.updateState(nextState);
+      cloudSync.updateState(nextState);
     }
     showToast(`Distance updated to ${km} km!`);
   };
 
-  // 7. Update Travel Speed & Activity (Firebase Realtime Update)
-  const handleUpdateSpeed = (userId, speedKmH, activity) => {
-    const targetUser = userId || currentUserId;
+  // 7. Update Travel Speed & Activity (Cloud Realtime Update)
+  const handleUpdateSpeed = (speedKmH, activity) => {
+    const targetUser = currentUserId;
     const currentName = targetUser === 'partnerA' ? state.partnerA.name : state.partnerB.name;
     let nextState;
 
@@ -287,12 +324,12 @@ export default function App() {
     });
 
     if (nextState) {
-      firebaseSync.updateState(nextState);
+      cloudSync.updateState(nextState);
     }
     showToast(`🚀 ${currentName}'s speed updated: ${speedKmH} km/h (${activity})`);
   };
 
-  // 8. Add Memory (Firebase Realtime Update)
+  // 8. Add Memory (Cloud Realtime Update)
   const handleAddMemory = (newMem) => {
     let nextState;
     setState((prev) => {
@@ -305,12 +342,12 @@ export default function App() {
     });
 
     if (nextState) {
-      firebaseSync.updateState(nextState);
+      cloudSync.updateState(nextState);
     }
     showToast('📸 Memory photo saved in Scrapbook!');
   };
 
-  // 9. Add Love Letter (Firebase Realtime Update)
+  // 9. Add Love Letter (Cloud Realtime Update)
   const handleAddLoveLetter = (newLetter) => {
     let nextState;
     setState((prev) => {
@@ -323,12 +360,12 @@ export default function App() {
     });
 
     if (nextState) {
-      firebaseSync.updateState(nextState);
+      cloudSync.updateState(nextState);
     }
     showToast('💌 Secret Love Letter locked in Vault!');
   };
 
-  // 10. Save Daily Question Answer (Firebase Realtime Update)
+  // 10. Save Daily Question Answer (Cloud Realtime Update)
   const handleSaveAnswer = (answer, userId) => {
     let nextState;
     setState((prev) => {
@@ -345,7 +382,7 @@ export default function App() {
     });
 
     if (nextState) {
-      firebaseSync.updateState(nextState);
+      cloudSync.updateState(nextState);
     }
     showToast('💖 Your answer saved! Partner unlocked!');
   };
@@ -378,7 +415,7 @@ export default function App() {
     });
 
     if (nextState) {
-      firebaseSync.updateState(nextState);
+      cloudSync.updateState(nextState);
     }
   };
 
@@ -401,7 +438,7 @@ export default function App() {
     });
 
     if (nextState) {
-      firebaseSync.updateState(nextState);
+      cloudSync.updateState(nextState);
     }
     soundManager.playKissPop();
     showToast('✨ Added new dream to Couple Bucket List!');

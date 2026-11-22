@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Android APK
@@ -14,6 +17,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -51,14 +56,17 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace > ../gradle_build.log 2>&1 || {
-            echo "### Gradle Build Error Log" >> $GITHUB_STEP_SUMMARY
-            echo '```text' >> $GITHUB_STEP_SUMMARY
-            tail -n 100 ../gradle_build.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat ../gradle_build.log | tail -n 100
-            exit 1
-          }
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee ../gradle_build.log
+
+      - name: Push failure log to git
+        if: failure()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b build-log
+          git add gradle_build.log
+          git commit -m "Capture full gradle build log"
+          git push origin build-log --force
 
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4

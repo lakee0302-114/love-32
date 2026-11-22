@@ -11,7 +11,7 @@ export const DEFAULT_ROOM_CODE = 'LOVE-6344';
 export const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyC1fwiVaQ-yp5fXwz17ZLMVHxdJ4E0pXKI",
   authDomain: "love-32-78b8a.firebaseapp.com",
-  databaseURL: "https://love-32-78b8a-default-rtdb.firebaseio.com",
+  databaseURL: "https://love-32-78b8a-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "love-32-78b8a",
   storageBucket: "love-32-78b8a.firebasestorage.app",
   messagingSenderId: "549336218968",
@@ -20,13 +20,17 @@ export const DEFAULT_FIREBASE_CONFIG = {
 };
 
 export const getFirebaseConfig = () => {
+  let config = DEFAULT_FIREBASE_CONFIG;
   try {
     const raw = localStorage.getItem(FIREBASE_CONFIG_STORAGE_KEY);
     if (raw) {
-      return { ...DEFAULT_FIREBASE_CONFIG, ...JSON.parse(raw) };
+      config = { ...DEFAULT_FIREBASE_CONFIG, ...JSON.parse(raw) };
     }
   } catch (e) {}
-  return DEFAULT_FIREBASE_CONFIG;
+  if (!config.databaseURL || config.databaseURL.includes('firebaseio.com')) {
+    config.databaseURL = 'https://love-32-78b8a-default-rtdb.asia-southeast1.firebasedatabase.app';
+  }
+  return config;
 };
 
 export const saveFirebaseConfig = (config) => {
@@ -77,25 +81,59 @@ export const encodeEmailKey = (email) => {
 export const saveAccountToFirebase = async (account) => {
   if (!account || !account.email) return;
   const key = encodeEmailKey(account.email);
-  if (!firebaseDb) initFirebase();
-  if (!firebaseDb) return;
+  const payload = {
+    email: account.email.toLowerCase().trim(),
+    password: account.password,
+    name: account.name || 'Partner',
+    avatar: account.avatar || '🤴',
+    updatedAt: Date.now(),
+  };
+  const config = getFirebaseConfig();
+  const baseUrl = config.databaseURL || 'https://love-32-78b8a-default-rtdb.asia-southeast1.firebasedatabase.app';
+
+  // 1. Direct REST PUT (instant cross-device cloud persistence)
   try {
-    const accountRef = ref(firebaseDb, `accounts/${key}`);
-    await set(accountRef, {
-      email: account.email.toLowerCase().trim(),
-      password: account.password,
-      name: account.name || 'Partner',
-      avatar: account.avatar || '🤴',
-      updatedAt: Date.now(),
+    await fetch(`${baseUrl}/accounts/${key}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
   } catch (err) {
-    console.warn('[Firebase] Save account notice:', err.message);
+    console.warn('[Firebase REST] Save account notice:', err.message);
+  }
+
+  // 2. Firebase SDK
+  if (!firebaseDb) initFirebase();
+  if (firebaseDb) {
+    try {
+      const accountRef = ref(firebaseDb, `accounts/${key}`);
+      await set(accountRef, payload);
+    } catch (err) {
+      console.warn('[Firebase SDK] Save account notice:', err.message);
+    }
   }
 };
 
 export const fetchAccountFromFirebase = async (email) => {
   if (!email) return null;
   const key = encodeEmailKey(email);
+  const config = getFirebaseConfig();
+  const baseUrl = config.databaseURL || 'https://love-32-78b8a-default-rtdb.asia-southeast1.firebasedatabase.app';
+
+  // 1. Direct REST query (fastest, ultra-reliable cross-device HTTP GET)
+  try {
+    const res = await fetch(`${baseUrl}/accounts/${key}.json`, { method: 'GET' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data === 'object' && data.email) {
+        return data;
+      }
+    }
+  } catch (err) {
+    console.warn('[Firebase REST] Fetch account notice:', err.message);
+  }
+
+  // 2. Firebase SDK fallback
   if (!firebaseDb) initFirebase();
   if (!firebaseDb) return null;
   try {
@@ -105,7 +143,7 @@ export const fetchAccountFromFirebase = async (email) => {
       return snapshot.val();
     }
   } catch (err) {
-    console.warn('[Firebase] Fetch account notice:', err.message);
+    console.warn('[Firebase SDK] Fetch account notice:', err.message);
   }
   return null;
 };
@@ -113,13 +151,25 @@ export const fetchAccountFromFirebase = async (email) => {
 export const updatePasswordInFirebase = async (email, newPassword) => {
   if (!email || !newPassword) return;
   const key = encodeEmailKey(email);
-  if (!firebaseDb) initFirebase();
-  if (!firebaseDb) return;
+  const config = getFirebaseConfig();
+  const baseUrl = config.databaseURL || 'https://love-32-78b8a-default-rtdb.asia-southeast1.firebasedatabase.app';
+
   try {
-    const passRef = ref(firebaseDb, `accounts/${key}/password`);
-    await set(passRef, newPassword);
-  } catch (err) {
-    console.warn('[Firebase] Update password notice:', err.message);
+    await fetch(`${baseUrl}/accounts/${key}/password.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newPassword)
+    });
+  } catch (e) {}
+
+  if (!firebaseDb) initFirebase();
+  if (firebaseDb) {
+    try {
+      const passRef = ref(firebaseDb, `accounts/${key}/password`);
+      await set(passRef, newPassword);
+    } catch (err) {
+      console.warn('[Firebase SDK] Update password notice:', err.message);
+    }
   }
 };
 

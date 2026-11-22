@@ -1,7 +1,7 @@
 @echo off
-title Love8 Ultra Launcher
+title Love32 Ultra Launcher
 echo ========================================================
-echo       LOVE8 ULTRA - ONLINE CLOUD COUPLE APP
+echo       LOVE32 ULTRA - ONLINE CLOUD COUPLE APP
 echo ========================================================
 echo.
 echo Connected to Online Cloud Database (Firebase / Cloud Realtime)

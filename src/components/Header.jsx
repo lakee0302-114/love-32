@@ -40,7 +40,7 @@ export default function Header({
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-base tracking-tight bg-gradient-to-r from-rose-400 via-pink-300 to-purple-300 bg-clip-text text-transparent">
-                  Love8
+                  Love32
                 </span>
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 shadow-sm flex items-center gap-0.5">
                   <Sparkles size={9} /> PRO

@@ -73,14 +73,14 @@ export default function WidgetStudio({
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <LayoutGrid size={18} className="text-rose-400" />
-            <h3 className="font-bold text-white text-base">Love8 Pro Widget Studio</h3>
+            <h3 className="font-bold text-white text-base">Love32 Pro Widget Studio</h3>
           </div>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-rose-500 text-slate-950 font-black">
             PRO UNLOCKED
           </span>
         </div>
         <p className="text-xs text-slate-300">
-          In Love8, widgets are locked behind subscriptions. Here you get unlimited real-time lock screen and home screen widgets with custom aesthetics!
+          In Love32, widgets are unlocked free. Here you get unlimited real-time lock screen and home screen widgets with custom aesthetics!
         </p>
 
         {/* Theme Picker */}
@@ -263,7 +263,7 @@ export default function WidgetStudio({
           {/* Simulated App Icons on Phone Home Screen */}
           <div className="grid grid-cols-4 gap-3 pt-3">
             {[
-              { name: 'Love8 Pro', icon: '💖', active: true },
+              { name: 'Love32 Pro', icon: '💖', active: true },
               { name: 'Photos', icon: '🖼️' },
               { name: 'Music', icon: '🎵' },
               { name: 'Messages', icon: '💬' },

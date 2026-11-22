@@ -85,7 +85,7 @@ export default function ScreenBombOverlay({ bombData, onClose }) {
 
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-semibold uppercase tracking-wider mb-2">
           <Flame size={13} className="text-rose-400 animate-pulse" />
-          Love8 Ultra Screen Bomb!
+          Love32 Ultra Screen Bomb!
         </div>
 
         <h3 className="text-xl font-bold text-white mb-1">

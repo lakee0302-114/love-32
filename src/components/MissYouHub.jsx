@@ -219,7 +219,7 @@ export default function MissYouHub({
           <div className="rounded-3xl p-5 bg-gradient-to-br from-rose-950/60 via-purple-950/40 to-slate-900 border border-rose-500/30">
             <div className="flex items-center justify-between mb-3">
               <div>
-                <h3 className="font-bold text-white text-base">Send Love8 Screen Bomb</h3>
+                <h3 className="font-bold text-white text-base">Send Love32 Screen Bomb</h3>
                 <p className="text-xs text-rose-200/80">
                   Explodes on {partnerUserName}'s screen with sound & haptic hearts!
                 </p>

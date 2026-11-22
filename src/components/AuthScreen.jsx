@@ -81,7 +81,7 @@ export default function AuthScreen({ onLoginSuccess }) {
             <Heart size={32} className="text-white fill-white" />
           </div>
           <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-rose-400 via-pink-300 to-purple-300 bg-clip-text text-transparent">
-            Love8 Ultra
+            Love32 Ultra
           </h1>
           <p className="text-xs text-rose-200/80 mt-1">#1 Couple Intimacy & Real-Time Sync</p>
         </div>

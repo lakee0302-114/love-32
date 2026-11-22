@@ -505,6 +505,41 @@ export default function App() {
     showToast('✨ Status updated!');
   };
 
+  // 4b. Update Profile (Name, Avatar, Mood, Status)
+  const handleUpdateProfile = (updates) => {
+    let nextState;
+    setState((prev) => {
+      nextState = {
+        ...prev,
+        [currentUserId]: {
+          ...prev[currentUserId],
+          ...updates,
+        },
+      };
+      saveState(nextState);
+      broadcastUpdate('STATE_UPDATE', nextState);
+      return nextState;
+    });
+
+    if (nextState) {
+      broadcastSyncState(nextState);
+      broadcastSyncEvent('PROFILE_UPDATED', updates.name || currentUser.name, updates);
+    }
+
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (updates.name) parsed.userName = updates.name;
+        if (updates.avatar) parsed.userAvatar = updates.avatar;
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(parsed));
+        setSession(parsed);
+      }
+    } catch (e) {}
+
+    showToast('✨ Profile updated successfully!');
+  };
+
   // 5. Update Pet (Cloud Realtime Update)
   const handleUpdatePet = (updatedPet) => {
     let nextState;
@@ -821,6 +856,12 @@ export default function App() {
         }}
         onLogout={handleLogout}
         partnerCode={roomCode}
+        userEmail={session?.email || 'lakee0302@gmail.com'}
+        onUpdateProfile={handleUpdateProfile}
+        onSendHeartbeat={handleSendHeartbeat}
+        onSendQuickKiss={handleSendQuickKiss}
+        showToast={showToast}
+        state={state}
       />
 
       {/* What Premium Includes Modal (Matches Image 1) */}

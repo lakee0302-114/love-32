@@ -31,6 +31,7 @@ import {
   Users
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
+import GoogleMapView from './GoogleMapView';
 
 export default function HomeScreen({
   state,
@@ -45,7 +46,13 @@ export default function HomeScreen({
   onToggleBucketItem,
   onAddBucketItem,
   partnerCode,
+  onOpenSettings,
+  onOpenAnniversary,
+  onOpenPremium,
+  onOpenPhoneStatus,
+  theme,
 }) {
+  const [viewMode, setViewMode] = useState('googleMap'); // 'googleMap' (Default - Love8 Google Map) | 'classicRadar'
   const currentUser = currentUserId === 'partnerA' ? state.partnerA : state.partnerB;
   const partnerUser = currentUserId === 'partnerA' ? state.partnerB : state.partnerA;
 
@@ -133,8 +140,61 @@ export default function HomeScreen({
     soundManager.playChime();
   };
 
+  // 🌟 GOOGLE MAP VIEW (Matches User Screenshot from Love8)
+  if (viewMode === 'googleMap') {
+    return (
+      <div className="relative w-full h-[calc(100vh-65px)]">
+        <GoogleMapView
+          state={state}
+          currentUserId={currentUserId}
+          onOpenSettings={onOpenSettings}
+          onOpenAnniversary={onOpenAnniversary}
+          onOpenPremium={onOpenPremium}
+          onOpenPhoneStatus={onOpenPhoneStatus}
+          onSendHeartbeat={onSendHeartbeat}
+          onSendQuickKiss={onSendQuickKiss}
+          onSendNudge={onSendNudge}
+          onOpenMissYou={onOpenMissYou}
+          onUpdateMyStatus={onUpdateMyStatus}
+          onUpdateDistance={onUpdateDistance}
+          onUpdateSpeed={onUpdateSpeed}
+          onToggleBucketItem={onToggleBucketItem}
+          onAddBucketItem={onAddBucketItem}
+          partnerCode={partnerCode}
+          theme={theme}
+        />
+
+        {/* Floating switch to classic radar */}
+        <button
+          type="button"
+          onClick={() => {
+            soundManager.playKissPop();
+            setViewMode('classicRadar');
+          }}
+          className="absolute top-16 right-3.5 z-20 px-3 py-1.5 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-xl text-[10px] font-black text-slate-800 dark:text-slate-100 hover:scale-105 active:scale-95 transition flex items-center gap-1.5"
+          title="Switch to Classic Radar View"
+        >
+          <span>🎯</span>
+          <span>Radar View</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 pb-20 animate-fadeIn">
+      {/* Return to Google Map Button */}
+      <button
+        type="button"
+        onClick={() => {
+          soundManager.playKissPop();
+          setViewMode('googleMap');
+        }}
+        className="w-full py-2.5 rounded-2xl bg-gradient-to-r from-sky-500 via-indigo-500 to-purple-600 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 hover:opacity-95 active:scale-95 transition"
+      >
+        <span>🗺️</span>
+        <span>Back to Google Map View (Love8 Style)</span>
+      </button>
       {/* 1. Days Together / Partner Connection Banner */}
       {!partnerUser.isJoined ? (
         <div className="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-purple-950/70 via-slate-900/90 to-rose-950/70 border border-rose-500/30 shadow-xl space-y-3">

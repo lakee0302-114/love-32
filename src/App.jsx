@@ -735,20 +735,22 @@ export default function App() {
 
       {/* Main Container - Mobile First Frame */}
       <div className="relative z-10 w-full max-w-md min-h-screen flex flex-col border-x border-slate-200 dark:border-slate-900 bg-white/95 dark:bg-slate-950/90 shadow-2xl">
-        {/* Header with Settings Button */}
-        <Header
-          state={state}
-          currentUserId={currentUserId}
-          onSwitchUser={handleSwitchUser}
-          isMuted={isMuted}
-          onToggleMute={handleToggleMute}
-          partnerCode={roomCode}
-          onLogout={handleLogout}
-          onOpenSettings={() => setShowSettingsModal(true)}
-        />
+        {/* Header with Settings Button (Shown on non-map tabs; Home tab uses Google Map floating top bar) */}
+        {activeTab !== 'home' && (
+          <Header
+            state={state}
+            currentUserId={currentUserId}
+            onSwitchUser={handleSwitchUser}
+            isMuted={isMuted}
+            onToggleMute={handleToggleMute}
+            partnerCode={roomCode}
+            onLogout={handleLogout}
+            onOpenSettings={() => setShowSettingsModal(true)}
+          />
+        )}
 
         {/* Dynamic View Content */}
-        <main className="flex-1 p-4 overflow-y-auto">
+        <main className={`flex-1 ${activeTab === 'home' ? 'p-0 overflow-hidden relative' : 'p-4 overflow-y-auto'}`}>
           {activeTab === 'home' && (
             <HomeScreen
               state={state}
@@ -766,6 +768,11 @@ export default function App() {
               onToggleBucketItem={handleToggleBucketItem}
               onAddBucketItem={handleAddBucketItem}
               partnerCode={roomCode}
+              onOpenSettings={() => setShowSettingsModal(true)}
+              onOpenAnniversary={() => setShowAnniversaryModal(true)}
+              onOpenPremium={() => setShowPremiumModal(true)}
+              onOpenPhoneStatus={() => setShowPhoneStatusModal(true)}
+              theme={theme}
             />
           )}
 

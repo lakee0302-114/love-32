@@ -1,21 +1,22 @@
-// Official Google Firebase Realtime Database Integration for Love8 Ultra
+// Official Google Firebase Realtime Database Integration for Love8 Ultra / Love32
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getDatabase, ref, set, update, onValue, off } from 'firebase/database';
 
 const FIREBASE_CONFIG_STORAGE_KEY = 'love8_firebase_official_config';
 const FIREBASE_ROOM_STORAGE_KEY = 'love8_firebase_room_code';
 
-export const DEFAULT_ROOM_CODE = 'LOVE-7788';
+export const DEFAULT_ROOM_CODE = 'LOVE-6344';
 
-// Default Firebase Configuration
+// Real Google Firebase Configuration from Firebase Console
 export const DEFAULT_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyB3vExample-DefaultLove8Key",
-  authDomain: "love8-ultra-couple.firebaseapp.com",
-  databaseURL: "https://love8-ultra-couple-default-rtdb.firebaseio.com",
-  projectId: "love8-ultra-couple",
-  storageBucket: "love8-ultra-couple.appspot.com",
-  messagingSenderId: "1029384756",
-  appId: "1:1029384756:web:a1b2c3d4e5f6g7h8i9j0"
+  apiKey: "AIzaSyC1fwiVaQ-yp5fXwz17ZLMVHxdJ4E0pXKI",
+  authDomain: "love-32-78b8a.firebaseapp.com",
+  databaseURL: "https://love-32-78b8a-default-rtdb.firebaseio.com",
+  projectId: "love-32-78b8a",
+  storageBucket: "love-32-78b8a.firebasestorage.app",
+  messagingSenderId: "549336218968",
+  appId: "1:549336218968:web:bfcf8fe7ac2e6eff43f92d",
+  measurementId: "G-B705SM47XQ"
 };
 
 export const getFirebaseConfig = () => {

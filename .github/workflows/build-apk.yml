@@ -72,9 +72,10 @@ jobs:
       - name: Create GitHub Release with Direct Download APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: "Love32 Ultra Android APK"
-          body: "🚀 Official Android APK release for Love32 Ultra. Includes live GPS tracking, travel speedometer, partner pairing, and all Ultra Pro features."
+          tag_name: v1.0.1
+          name: "Love32 Ultra Android APK (Firebase Realtime Connected)"
+          body: "🚀 Official Android APK release for Love32 Ultra. Connected with Google Firebase Realtime Database (`love-32-78b8a`), live GPS speed tracking, and full Pro features."
           files: Love32-Ultra.apk
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

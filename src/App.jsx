@@ -23,7 +23,7 @@ import {
   subscribeToBroadcast,
 } from './utils/storage';
 import { cloudSync } from './utils/cloudSync';
-import { getSavedRoomCode, saveRoomCode } from './utils/firebase';
+import { firebaseSync, getSavedRoomCode, saveRoomCode } from './utils/firebase';
 import { monitorPhoneBattery, monitorLiveLocationAndSpeed, calculateDistanceKm } from './utils/deviceSensors';
 import { soundManager } from './utils/audio';
 import confetti from 'canvas-confetti';
@@ -72,6 +72,26 @@ export default function App() {
     showToast(`Switched to ${target === 'dark' ? 'Dark Mode 🌙' : 'Light Mode ☀️'}`);
   };
 
+  // Dual Sync Engine: High-speed WebSocket relay + Official Google Firebase Realtime Database
+  const broadcastSyncState = (nextState) => {
+    if (!nextState) return;
+    try {
+      cloudSync.updateState(nextState);
+    } catch (e) {}
+    try {
+      firebaseSync.updateState(nextState);
+    } catch (e) {}
+  };
+
+  const broadcastSyncEvent = (type, senderName, payload = {}) => {
+    try {
+      cloudSync.pushEvent(type, senderName, payload);
+    } catch (e) {}
+    try {
+      firebaseSync.pushEvent(type, senderName, payload);
+    } catch (e) {}
+  };
+
   const handleSaveAnniversary = (dateStr) => {
     let nextState;
     setState((prev) => {
@@ -84,7 +104,7 @@ export default function App() {
       return nextState;
     });
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
     showToast(`Anniversary set to ${dateStr} 💖`);
   };
@@ -130,14 +150,14 @@ export default function App() {
 
     // Connect to room and announce presence
     cloudSync.subscribeRoom(authData.partnerCode);
-    cloudSync.pushEvent('PARTNER_JOINED', authData.userName, {
+    broadcastSyncEvent('PARTNER_JOINED', authData.userName, {
       role: assignedRole,
       name: authData.userName,
       avatar: authData.userAvatar,
     });
 
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
 
     showToast(`Welcome ${authData.userName}! Connected to Room ${authData.partnerCode} 💖`);
@@ -229,7 +249,7 @@ export default function App() {
             },
           };
           // Broadcast our state back so the newly joined partner receives it immediately
-          cloudSync.updateState(next);
+          broadcastSyncState(next);
           return next;
         });
       } else if (event.type === 'HEARTBEAT') {
@@ -246,9 +266,63 @@ export default function App() {
       }
     });
 
+    // 3. Subscribe to Google Firebase Realtime Database
+    const unsubFirebaseState = firebaseSync.subscribeState(activeRoom, (remoteState) => {
+      if (remoteState && typeof remoteState === 'object') {
+        setState((prev) => {
+          const incomingPartnerA = remoteState.partnerA || {};
+          const incomingPartnerB = remoteState.partnerB || {};
+
+          const cleanPartnerA =
+            incomingPartnerA.name === 'Kasun'
+              ? { ...incomingPartnerA, name: '', isJoined: false }
+              : incomingPartnerA;
+          const cleanPartnerB =
+            incomingPartnerB.name === 'Nethmi' || !incomingPartnerB.isJoined
+              ? { ...incomingPartnerB, name: '', isJoined: false, battery: null, speedKmH: 0 }
+              : incomingPartnerB;
+
+          const isBothJoined = Boolean(cleanPartnerA.isJoined && cleanPartnerB.isJoined);
+
+          return {
+            ...prev,
+            partnerA: { ...prev.partnerA, ...cleanPartnerA },
+            partnerB: { ...prev.partnerB, ...cleanPartnerB },
+            distanceKm: isBothJoined ? (remoteState.distanceKm ?? prev.distanceKm) : null,
+            pet: remoteState.pet ? { ...prev.pet, ...remoteState.pet } : prev.pet,
+            memories: remoteState.memories || prev.memories,
+            loveLetters: remoteState.loveLetters || prev.loveLetters,
+            dailyQuestion: remoteState.dailyQuestion ? { ...prev.dailyQuestion, ...remoteState.dailyQuestion } : prev.dailyQuestion,
+            bucketList: remoteState.bucketList || prev.bucketList,
+          };
+        });
+      }
+    });
+
+    const unsubFirebaseEvents = firebaseSync.subscribeEvents(activeRoom, (event) => {
+      if (!event || !event.type) return;
+      const currentName = currentUserId === 'partnerA' ? state.partnerA.name : state.partnerB.name;
+      if (event.senderName === currentName) return;
+
+      if (event.type === 'HEARTBEAT') {
+        soundManager.playHeartbeat();
+        showToast(`💓 ${event.senderName} sent you a heartbeat!`);
+      } else if (event.type === 'KISS') {
+        soundManager.playKissPop();
+        try {
+          confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+        } catch (e) {}
+        showToast(`💋 ${event.senderName} blew you a sweet kiss!`);
+      } else if (event.type === 'SCREEN_BOMB') {
+        setActiveScreenBomb(event.payload);
+      }
+    });
+
     return () => {
       if (typeof unsubState === 'function') unsubState();
       if (typeof unsubEvents === 'function') unsubEvents();
+      if (typeof unsubFirebaseState === 'function') unsubFirebaseState();
+      if (typeof unsubFirebaseEvents === 'function') unsubFirebaseEvents();
     };
   }, [session, roomCode, currentUserId]);
 
@@ -271,7 +345,7 @@ export default function App() {
         return nextState;
       });
       if (nextState) {
-        cloudSync.updateState(nextState);
+        broadcastSyncState(nextState);
       }
     });
 
@@ -315,7 +389,7 @@ export default function App() {
       });
 
       if (nextState) {
-        cloudSync.updateState(nextState);
+        broadcastSyncState(nextState);
       }
     });
 
@@ -382,7 +456,7 @@ export default function App() {
     showToast(`💓 Heartbeat sent to ${partnerName}!`);
 
     broadcastUpdate('HEARTBEAT', { senderName: currentName });
-    cloudSync.pushEvent('HEARTBEAT', currentName, {});
+    broadcastSyncEvent('HEARTBEAT', currentName, {});
   };
 
   // 2. Send Kiss (Cloud Realtime Push)
@@ -396,7 +470,7 @@ export default function App() {
     showToast(`💋 Kiss sent to ${partnerName}!`);
 
     broadcastUpdate('KISS', { senderName: currentName });
-    cloudSync.pushEvent('KISS', currentName, {});
+    broadcastSyncEvent('KISS', currentName, {});
   };
 
   // 3. Send Screen Bomb (Cloud Realtime Push)
@@ -406,7 +480,7 @@ export default function App() {
     }, 500);
 
     broadcastUpdate('SCREEN_BOMB', bombData);
-    cloudSync.pushEvent('SCREEN_BOMB', bombData.senderName, bombData);
+    broadcastSyncEvent('SCREEN_BOMB', bombData.senderName, bombData);
   };
 
   // 4. Update Status & Mood (Cloud Realtime Update)
@@ -426,7 +500,7 @@ export default function App() {
     });
 
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
     showToast('✨ Status updated!');
   };
@@ -441,7 +515,7 @@ export default function App() {
     });
 
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
   };
 
@@ -455,7 +529,7 @@ export default function App() {
     });
 
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
     showToast(`Distance updated to ${km} km!`);
   };
@@ -481,7 +555,7 @@ export default function App() {
     });
 
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
     showToast(`🚀 ${currentName}'s speed updated: ${speedKmH} km/h (${activity})`);
   };
@@ -499,7 +573,7 @@ export default function App() {
     });
 
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
     showToast('📸 Memory photo saved in Scrapbook!');
   };
@@ -517,7 +591,7 @@ export default function App() {
     });
 
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
     showToast('💌 Secret Love Letter locked in Vault!');
   };
@@ -539,7 +613,7 @@ export default function App() {
     });
 
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
     showToast('💖 Your answer saved! Partner unlocked!');
   };
@@ -572,7 +646,7 @@ export default function App() {
     });
 
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
   };
 
@@ -595,7 +669,7 @@ export default function App() {
     });
 
     if (nextState) {
-      cloudSync.updateState(nextState);
+      broadcastSyncState(nextState);
     }
     soundManager.playKissPop();
     showToast('✨ Added new dream to Couple Bucket List!');

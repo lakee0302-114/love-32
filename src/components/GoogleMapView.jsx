@@ -166,35 +166,68 @@ export default function GoogleMapView({
     activeTileLayerRef.current = newLayer;
   }, [mapType]);
 
-  // Create Marker HTML helper
+  // Create Marker HTML helper with Dynamic Vehicle & Speed Detection
   const createPinHtml = (user, isSelf) => {
     const avatar = user?.avatar || (isSelf ? '🤴' : '🌸');
+    const speed = typeof user?.speedKmH === 'number' ? user.speedKmH : 0;
+    const isVehicle = speed >= 10 || (user?.activity && (user.activity.toLowerCase().includes('vehicle') || user.activity.toLowerCase().includes('car') || user.activity.toLowerCase().includes('drive')));
+    const isMoving = speed > 2 || user?.isMoving;
+
     const mood = user?.mood?.split(' ')[0] || (isSelf ? '😴' : '💕');
     const displayStatus = user?.status || 'View Status';
     const ringColor = isSelf ? 'ring-purple-500/50' : 'ring-pink-500/50';
     const badgeColor = isSelf ? 'bg-purple-600' : 'bg-pink-600';
 
+    // Top Floating Pill content (Shows Vehicle Speed when moving in a vehicle)
+    let pillContent = '';
+    let pillBg = 'bg-[#181d29] dark:bg-slate-900 border-slate-700/80 text-white shadow-2xl';
+
+    if (isVehicle) {
+      // 🚗 In Vehicle / Driving: Prominently show Vehicle icon + Live Speed
+      pillBg = 'bg-gradient-to-r from-slate-900 via-sky-950 to-slate-900 border-sky-400 text-white shadow-2xl ring-2 ring-sky-400/40 animate-pulse';
+      pillContent = `
+        <span class="text-sm">🚗</span>
+        <span class="font-black text-amber-300 text-xs tracking-tight">${speed} km/h</span>
+        <span class="text-[10px] text-sky-200 font-bold ml-0.5">• In Vehicle</span>
+        <span class="text-slate-400 font-bold text-[10px] ml-0.5">&gt;</span>
+      `;
+    } else if (isMoving) {
+      // 🏃 Walking / Moving
+      pillBg = 'bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 border-emerald-400 text-white shadow-xl';
+      pillContent = `
+        <span class="text-sm">🚶</span>
+        <span class="font-black text-emerald-300 text-xs tracking-tight">${speed} km/h</span>
+        <span class="text-[10px] text-emerald-200 font-medium ml-0.5">• Moving</span>
+        <span class="text-slate-400 font-bold text-[10px] ml-0.5">&gt;</span>
+      `;
+    } else {
+      // 🛋️ Resting / Stationary: Show custom status & mood (Matches user image: 📚 Studying >)
+      pillContent = `
+        <span class="text-sm">${mood}</span>
+        <span class="max-w-[110px] truncate font-extrabold text-white">${displayStatus}</span>
+        <span class="text-slate-400 font-bold text-[10px] ml-0.5">&gt;</span>
+      `;
+    }
+
     return `
       <div class="relative flex flex-col items-center pointer-events-auto cursor-pointer group" style="transform: translate3d(0,0,0);">
-        <!-- Floating Status Pill (Matches Screenshot: 😴 View Status >) -->
-        <div class="mb-1.5 px-3 py-1 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-xl flex items-center gap-1.5 text-xs font-black text-slate-800 dark:text-white whitespace-nowrap active:scale-95 transition">
-          <span>${mood}</span>
-          <span class="max-w-[110px] truncate">${displayStatus}</span>
-          <span class="text-slate-400 font-bold text-[10px] ml-0.5">&gt;</span>
+        <!-- Floating Status / Speed Pill on Top -->
+        <div class="mb-1.5 px-3 py-1 rounded-full border flex items-center gap-1.5 text-xs font-black whitespace-nowrap active:scale-95 transition-all ${pillBg}">
+          ${pillContent}
         </div>
 
         <!-- Avatar Pin Circle -->
         <div class="relative flex items-center justify-center">
-          <div class="w-14 h-14 rounded-full bg-white dark:bg-slate-900 p-0.5 shadow-2xl border-2 border-white dark:border-slate-700 flex items-center justify-center ring-4 ${ringColor}">
-            <div class="w-full h-full rounded-full bg-gradient-to-tr from-amber-100 to-rose-100 dark:from-slate-800 dark:to-purple-950 flex items-center justify-center text-3xl shadow-inner">
+          <div class="w-14 h-14 rounded-full bg-slate-900 p-0.5 shadow-2xl border-2 border-slate-700 flex items-center justify-center ring-4 ${ringColor}">
+            <div class="w-full h-full rounded-full bg-gradient-to-tr from-slate-800 to-purple-950 flex items-center justify-center text-3xl shadow-inner">
               ${avatar}
             </div>
           </div>
           <!-- Pointer Arrow Tip -->
-          <div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white dark:bg-slate-900 rotate-45 rounded-sm shadow-md border-r-2 border-b-2 border-slate-200 dark:border-slate-700"></div>
-          <!-- Bottom badge -->
-          <span class="absolute -bottom-1 -right-1 text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full ${badgeColor} text-white shadow">
-            ${isSelf ? 'You' : 'Love'}
+          <div class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-slate-900 rotate-45 rounded-sm shadow-md border-r-2 border-b-2 border-slate-700"></div>
+          <!-- Bottom badge: YOU or Live Speed -->
+          <span class="absolute -bottom-1 -right-1 text-[9px] font-black uppercase px-1.5 py-0.2 rounded-full ${isVehicle ? 'bg-amber-400 text-slate-950 ring-2 ring-slate-900 font-extrabold' : badgeColor + ' text-white'} shadow">
+            ${isVehicle ? `${speed}km/h` : (isSelf ? 'YOU' : 'LOVE')}
           </span>
         </div>
       </div>
@@ -296,7 +329,25 @@ export default function GoogleMapView({
         connectingLineRef.current = null;
       }
     }
-  }, [userLat, userLng, partnerLat, partnerLng, isPartnerJoined, currentUser, partnerUser]);
+  }, [
+    userLat,
+    userLng,
+    partnerLat,
+    partnerLng,
+    isPartnerJoined,
+    currentUser,
+    partnerUser,
+    currentUser?.speedKmH,
+    currentUser?.status,
+    currentUser?.mood,
+    currentUser?.activity,
+    currentUser?.avatar,
+    partnerUser?.speedKmH,
+    partnerUser?.status,
+    partnerUser?.mood,
+    partnerUser?.activity,
+    partnerUser?.avatar,
+  ]);
 
   // Recenter GPS Action
   const handleRecenter = () => {
@@ -326,22 +377,6 @@ export default function GoogleMapView({
     } else {
       map.flyTo([userLat, userLng], 16, { duration: 1.2 });
     }
-  };
-
-  // Gift Box Click
-  const handleGiftClick = () => {
-    soundManager.playKissPop();
-    try {
-      confetti({ particleCount: 70, spread: 80, origin: { x: 0.2, y: 0.8 } });
-    } catch (e) {}
-    if (onSendQuickKiss) onSendQuickKiss();
-    alert('🎁 Surprise Gift Claimed! You sent an Ultra Love Kiss with sparkling hearts! 💖');
-  };
-
-  // Sale / Promo Click
-  const handleSaleClick = () => {
-    soundManager.playKissPop();
-    if (onOpenPremium) onOpenPremium();
   };
 
   return (
@@ -456,39 +491,9 @@ export default function GoogleMapView({
         >
           <Crosshair size={18} className={isLocating ? 'animate-spin text-rose-500' : ''} />
         </button>
-
-        {/* Promo / Pumpkin Badge (Matches Screenshot) */}
-        <button
-          type="button"
-          onClick={handleSaleClick}
-          className="relative flex flex-col items-center hover:scale-110 active:scale-95 transition pt-1"
-          title="Claim Daily VIP Sale"
-        >
-          <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-amber-500 via-orange-500 to-rose-500 text-white shadow-xl flex items-center justify-center text-2xl border-2 border-white dark:border-slate-800 animate-bounce-subtle">
-            🎃
-          </div>
-          <span className="mt-[-8px] px-2 py-0.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black text-[9px] uppercase shadow tracking-wider">
-            SALE
-          </span>
-        </button>
       </div>
 
-      {/* 4. Bottom-Left Gift Box (Matches Screenshot) */}
-      <button
-        type="button"
-        onClick={handleGiftClick}
-        className="absolute bottom-28 left-4 z-20 flex flex-col items-center hover:scale-110 active:scale-95 transition group"
-        title="Open Daily Surprise Gift"
-      >
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-pink-400 via-rose-400 to-purple-500 shadow-2xl flex items-center justify-center text-2xl border-2 border-white dark:border-slate-800 animate-pulse-heart">
-          🎁
-        </div>
-        <span className="text-[10px] font-extrabold text-white bg-slate-900/80 px-1.5 py-0.2 rounded-full mt-1 backdrop-blur shadow">
-          Gift
-        </span>
-      </button>
-
-      {/* 5. Authentic Google Maps Logo (Bottom Left - Matches Screenshot) */}
+      {/* Authentic Google Maps Logo (Bottom Left - Matches Screenshot) */}
       <div className="absolute bottom-24 left-4 z-10 flex items-center pointer-events-none select-none opacity-85">
         <span className="text-xs font-black tracking-tighter" style={{ fontFamily: 'Product Sans, Roboto, sans-serif' }}>
           <span className="text-[#4285F4]">G</span>
@@ -714,6 +719,79 @@ export default function GoogleMapView({
                   {preset}
                 </button>
               ))}
+            </div>
+
+            {/* 🚗 Live Vehicle & Speed Simulation */}
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center justify-between">
+                <span>🚗 Travel Motion & Vehicle Speed</span>
+                <span className="text-amber-500 font-extrabold">{currentUser?.speedKmH ?? 0} km/h</span>
+              </label>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playKissPop();
+                    if (onUpdateSpeed) onUpdateSpeed(0, 'Resting 🛋️');
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition text-left flex items-center justify-between ${
+                    (currentUser?.speedKmH || 0) === 0
+                      ? 'bg-rose-500 text-white border-rose-500'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span>🛋️ Resting</span>
+                  <span>0 km/h</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playKissPop();
+                    if (onUpdateSpeed) onUpdateSpeed(5, 'Walking 🚶');
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition text-left flex items-center justify-between ${
+                    (currentUser?.speedKmH || 0) > 0 && (currentUser?.speedKmH || 0) < 12
+                      ? 'bg-emerald-600 text-white border-emerald-600'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span>🚶 Walking</span>
+                  <span>5 km/h</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playKissPop();
+                    if (onUpdateSpeed) onUpdateSpeed(45, 'In Vehicle 🚗');
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition text-left flex items-center justify-between ${
+                    (currentUser?.speedKmH || 0) >= 12 && (currentUser?.speedKmH || 0) < 60
+                      ? 'bg-sky-600 text-white border-sky-600'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span>🚗 In Car / Bike</span>
+                  <span>45 km/h</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundManager.playKissPop();
+                    if (onUpdateSpeed) onUpdateSpeed(80, 'In Vehicle 🏎️');
+                  }}
+                  className={`px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition text-left flex items-center justify-between ${
+                    (currentUser?.speedKmH || 0) >= 60
+                      ? 'bg-indigo-600 text-white border-indigo-600'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <span>🏎️ Highway Speed</span>
+                  <span>80 km/h</span>
+                </button>
+              </div>
             </div>
 
             <button

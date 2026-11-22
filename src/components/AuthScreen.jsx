@@ -12,13 +12,15 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
-  Flame,
   LogIn,
   UserPlus,
   Share2,
   Users,
   AlertCircle,
-  X
+  ArrowLeft,
+  RefreshCw,
+  Send,
+  CheckCircle2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../utils/audio';
@@ -52,8 +54,9 @@ function saveAccountToDB(account) {
 }
 
 export default function AuthScreen({ onLoginSuccess }) {
-  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
-  const [step, setStep] = useState(1); // 1: Auth form, 2: Partner Code Pairing
+  // authMode: 'login' | 'signup' | 'login_otp' | 'forgot_password'
+  const [authMode, setAuthMode] = useState('login');
+  const [step, setStep] = useState(1); // 1: Auth form/OTP, 2: Partner Code Pairing
 
   // Form states
   const [email, setEmail] = useState('');
@@ -70,12 +73,27 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  // Google Modal State
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [googleEmail, setGoogleEmail] = useState('');
-  const [googlePassword, setGooglePassword] = useState('');
-  const [googleError, setGoogleError] = useState('');
-  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  // 🔐 Login Email OTP Verification States
+  const [loginOtp, setLoginOtp] = useState('');
+  const [loginOtpInput, setLoginOtpInput] = useState('');
+  const [activeOtpNotification, setActiveOtpNotification] = useState(null);
+  const [resendCountdown, setResendCountdown] = useState(0);
+
+  // 🔑 Forgot Password States
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [forgotOtpInput, setForgotOtpInput] = useState('');
+  const [forgotNewPassword, setForgotNewPassword] = useState('');
+  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
+  const [forgotStep, setForgotStep] = useState(1); // 1: Enter email, 2: Enter OTP & New Password
+
+  // Countdown timer for OTP Resend
+  useEffect(() => {
+    if (resendCountdown > 0) {
+      const timer = setTimeout(() => setResendCountdown(resendCountdown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCountdown]);
 
   // Check URL query parameters for invite code (?code=LOVE-XXXX or ?room=LOVE-XXXX)
   useEffect(() => {
@@ -91,7 +109,10 @@ export default function AuthScreen({ onLoginSuccess }) {
 
   const avatarOptions = ['🤴', '👸', '🌸', '👨‍💻', '🐱', '🐰', '🐻', '🦊', '💖', '✨'];
 
-  // Handle Real Authentication (Strict Validation)
+  // Helper to generate a 6-digit random OTP
+  const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+  // 1. Handle Primary Auth Form Submit (Login / Sign Up)
   const handleAuthSubmit = (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -100,14 +121,14 @@ export default function AuthScreen({ onLoginSuccess }) {
     const cleanEmail = email.toLowerCase().trim();
     const cleanPass = password.trim();
 
-    // 1. Strict Email Format Check
+    // Strict Email Format Check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(cleanEmail)) {
       setErrorMsg('❌ Please enter a valid email address (e.g. name@gmail.com)');
       return;
     }
 
-    // 2. Password Length Check
+    // Password Length Check
     if (cleanPass.length < 6) {
       setErrorMsg('❌ Password must be at least 6 characters long');
       return;
@@ -116,7 +137,7 @@ export default function AuthScreen({ onLoginSuccess }) {
     const db = getAccountsDB();
 
     if (authMode === 'login') {
-      // SIGN IN MODE: Strictly check database
+      // SIGN IN MODE: Check credentials first
       const existingUser = db[cleanEmail];
       if (!existingUser) {
         setErrorMsg('❌ No account found with this email! Please click "Create Account" first to register.');
@@ -128,17 +149,27 @@ export default function AuthScreen({ onLoginSuccess }) {
         return;
       }
 
-      // Successful Sign In
+      // Valid Credentials -> Generate and send 6-digit Email OTP!
+      const generatedCode = generateOTP();
+      setLoginOtp(generatedCode);
+      setLoginOtpInput('');
       setName(existingUser.name);
       setAvatar(existingUser.avatar);
+
       setIsSubmitting(true);
       soundManager.playKissPop();
 
       setTimeout(() => {
         setIsSubmitting(false);
+        setAuthMode('login_otp');
+        setResendCountdown(30);
+        setActiveOtpNotification({
+          email: cleanEmail,
+          code: generatedCode,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        });
         soundManager.playChime();
-        setStep(2);
-      }, 600);
+      }, 500);
     } else {
       // CREATE ACCOUNT (SIGN UP) MODE
       if (!name.trim()) {
@@ -166,6 +197,11 @@ export default function AuthScreen({ onLoginSuccess }) {
       };
       saveAccountToDB(newAccount);
 
+      // Trigger OTP verification for newly registered account as well
+      const generatedCode = generateOTP();
+      setLoginOtp(generatedCode);
+      setLoginOtpInput('');
+
       setIsSubmitting(true);
       soundManager.playSuccess();
       try {
@@ -174,69 +210,146 @@ export default function AuthScreen({ onLoginSuccess }) {
 
       setTimeout(() => {
         setIsSubmitting(false);
+        setAuthMode('login_otp');
+        setResendCountdown(30);
+        setActiveOtpNotification({
+          email: cleanEmail,
+          code: generatedCode,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        });
         soundManager.playChime();
-        setStep(2);
-      }, 700);
+      }, 600);
     }
   };
 
-  // Real Google Sign-in Verification
-  const handleGoogleFormSubmit = (e) => {
+  // 2. Handle Login OTP Verification
+  const handleVerifyLoginOtp = (e) => {
     e.preventDefault();
-    setGoogleError('');
+    setErrorMsg('');
 
-    const cleanEmail = googleEmail.toLowerCase().trim();
-    const cleanPass = googlePassword.trim();
-
-    if (!cleanEmail || !cleanEmail.endsWith('@gmail.com')) {
-      setGoogleError('❌ Please enter a valid Google Account (@gmail.com)');
-      return;
-    }
-    if (cleanPass.length < 6) {
-      setGoogleError('❌ Google password must be at least 6 characters');
+    const cleanInput = loginOtpInput.trim();
+    if (!cleanInput) {
+      setErrorMsg('❌ Please enter the 6-digit OTP code.');
       return;
     }
 
-    setIsGoogleSubmitting(true);
-    soundManager.playKissPop();
+    if (cleanInput !== loginOtp) {
+      setErrorMsg('❌ Invalid OTP code! Please check the code sent to your email.');
+      soundManager.playKissPop();
+      return;
+    }
+
+    // OTP Verified! Proceed to Step 2 (Pair with partner)
+    setIsSubmitting(true);
+    soundManager.playSuccess();
+    try {
+      confetti({ particleCount: 90, spread: 80 });
+    } catch (e) {}
 
     setTimeout(() => {
-      setIsGoogleSubmitting(false);
-      const db = getAccountsDB();
-      let user = db[cleanEmail];
-
-      if (user) {
-        // Existing Google User: Verify password
-        if (user.password !== cleanPass) {
-          setGoogleError('❌ Incorrect password for this Google account.');
-          return;
-        }
-      } else {
-        // New Google User: Register automatically
-        const autoName = cleanEmail.split('@')[0];
-        user = {
-          email: cleanEmail,
-          password: cleanPass,
-          name: autoName.charAt(0).toUpperCase() + autoName.slice(1),
-          avatar: '🤴',
-          isGoogle: true,
-          createdAt: Date.now(),
-        };
-        saveAccountToDB(user);
-      }
-
-      setEmail(user.email);
-      setName(user.name);
-      setAvatar(user.avatar);
-      setShowGoogleModal(false);
-      soundManager.playChime();
-      try {
-        confetti({ particleCount: 80, spread: 80 });
-      } catch (e) {}
+      setIsSubmitting(false);
+      setActiveOtpNotification(null);
       setStep(2);
-    }, 1000);
+      soundManager.playChime();
+    }, 700);
   };
 
+  // Resend Login OTP
+  const handleResendLoginOtp = () => {
+    if (resendCountdown > 0) return;
+    const newCode = generateOTP();
+    setLoginOtp(newCode);
+    setResendCountdown(30);
+    setErrorMsg('');
+    setActiveOtpNotification({
+      email: email.toLowerCase().trim(),
+      code: newCode,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    });
+    soundManager.playKissPop();
+  };
+
+  // 3. Handle Forgot Password - Step 1: Send Reset OTP
+  const handleForgotSendOtp = (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    const cleanEmail = forgotEmail.toLowerCase().trim();
+    const db = getAccountsDB();
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      setErrorMsg('❌ Please enter a valid email address.');
+      return;
+    }
+
+    if (!db[cleanEmail]) {
+      setErrorMsg('❌ No account found with this email address.');
+      return;
+    }
+
+    const newResetCode = generateOTP();
+    setForgotOtp(newResetCode);
+    setForgotOtpInput('');
+    setForgotStep(2);
+    soundManager.playKissPop();
+    setActiveOtpNotification({
+      email: cleanEmail,
+      code: newResetCode,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    });
+  };
+
+  // Handle Forgot Password - Step 2: Verify OTP and Save New Password
+  const handleForgotResetPassword = (e) => {
+    e.preventDefault();
+    setErrorMsg('');
+    setSuccessMsg('');
+
+    if (forgotOtpInput.trim() !== forgotOtp) {
+      setErrorMsg('❌ Invalid reset OTP code! Please check the code sent to your email.');
+      return;
+    }
+
+    const cleanPass = forgotNewPassword.trim();
+    if (cleanPass.length < 6) {
+      setErrorMsg('❌ New password must be at least 6 characters long.');
+      return;
+    }
+
+    if (cleanPass !== forgotConfirmPassword.trim()) {
+      setErrorMsg('❌ Passwords do not match! Please check again.');
+      return;
+    }
+
+    // Save updated password in Database
+    const cleanEmail = forgotEmail.toLowerCase().trim();
+    const db = getAccountsDB();
+    if (db[cleanEmail]) {
+      db[cleanEmail].password = cleanPass;
+      try {
+        localStorage.setItem(ACCOUNTS_DB_KEY, JSON.stringify(db));
+      } catch (err) {}
+    }
+
+    soundManager.playSuccess();
+    try {
+      confetti({ particleCount: 80, spread: 70 });
+    } catch (e) {}
+
+    setSuccessMsg('✅ Password reset successfully! Please sign in with your new password.');
+    setActiveOtpNotification(null);
+
+    // Return to sign in view with email prefilled
+    setTimeout(() => {
+      setEmail(cleanEmail);
+      setPassword('');
+      setAuthMode('login');
+      setForgotStep(1);
+    }, 1200);
+  };
+
+  // Step 2 Actions
   const handleCopyMyCode = () => {
     navigator.clipboard?.writeText(myPairCode);
     soundManager.playKissPop();
@@ -253,14 +366,23 @@ export default function AuthScreen({ onLoginSuccess }) {
     setTimeout(() => setCopiedLink(false), 2500);
   };
 
-  // 1. Enter as Host (Partner 1) with Own Generated Code
-  const handleHostEnter = () => {
+  const handleWhatsAppShare = () => {
+    soundManager.playKissPop();
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://love-32.vercel.app';
+    const link = `${origin}/?code=${myPairCode}`;
+    const text = encodeURIComponent(
+      `Hey my love! ❤️ Join me on Love32 Ultra.\nOur secret Room Code is: ${myPairCode}\nTap here to connect instantly: ${link}`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
+  const handleStartAsHost = () => {
     setIsSubmitting(true);
     soundManager.playHeartbeat();
 
     setTimeout(() => {
       try {
-        confetti({ particleCount: 70, spread: 70, origin: { y: 0.6 } });
+        confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
       } catch (err) {}
       soundManager.playChime();
 
@@ -272,15 +394,19 @@ export default function AuthScreen({ onLoginSuccess }) {
         partnerCode: myPairCode,
         myCode: myPairCode,
       });
-    }, 800);
+    }, 700);
   };
 
-  // 2. Enter as Partner 2 using Partner's Code
   const handleJoinWithPartnerCode = (e) => {
     e.preventDefault();
     const code = partnerInputCode.trim().toUpperCase();
+
     if (!code) {
-      setErrorMsg('Please enter your partner’s code (e.g. LOVE-7788)');
+      setErrorMsg('Please enter your partner’s code');
+      return;
+    }
+    if (code.length < 4) {
+      setErrorMsg('Invalid code format. Codes are usually like LOVE-1234');
       return;
     }
 
@@ -310,6 +436,44 @@ export default function AuthScreen({ onLoginSuccess }) {
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-rose-600/20 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-purple-600/20 rounded-full blur-[140px] pointer-events-none" />
 
+      {/* Simulated Live Email Inbox OTP Notification Banner */}
+      {activeOtpNotification && (
+        <div className="fixed top-4 left-4 right-4 max-w-sm mx-auto z-50 animate-bounce-subtle">
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 border-2 border-pink-500 shadow-2xl text-xs space-y-1.5">
+            <div className="flex items-center justify-between text-pink-300 font-bold">
+              <span className="flex items-center gap-1.5">
+                <Mail size={14} className="text-pink-400" />
+                <span>New Email: Love32 Security</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">{activeOtpNotification.time}</span>
+            </div>
+            <p className="text-slate-300 text-[11px] leading-tight">
+              To: <span className="text-white font-mono">{activeOtpNotification.email}</span>
+            </p>
+            <div className="p-2 rounded-xl bg-slate-950 border border-pink-500/40 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] text-slate-400 uppercase font-semibold">Your Verification OTP:</div>
+                <div className="text-xl font-black font-mono tracking-widest text-pink-400">
+                  {activeOtpNotification.code}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (authMode === 'login_otp') setLoginOtpInput(activeOtpNotification.code);
+                  if (authMode === 'forgot_password') setForgotOtpInput(activeOtpNotification.code);
+                  soundManager.playKissPop();
+                }}
+                className="px-2.5 py-1 rounded-lg bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-[10px] font-bold border border-pink-500/40"
+              >
+                Auto Fill
+              </button>
+            </div>
+            <p className="text-[9px] text-slate-400">Valid for 5 minutes. Never share this code with anyone.</p>
+          </div>
+        </div>
+      )}
+
       <div className="relative z-10 max-w-sm w-full bg-slate-900/90 border border-rose-500/30 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
         {/* Top Logo */}
         <div className="text-center mb-5">
@@ -322,8 +486,10 @@ export default function AuthScreen({ onLoginSuccess }) {
           <p className="text-xs text-rose-200/80">#1 Couple Intimacy & Real-Time Sync</p>
         </div>
 
-        {/* STEP 1: GOOGLE EMAIL & PASSWORD AUTHENTICATION */}
-        {step === 1 && (
+        {/* ========================================================
+            VIEW 1: PRIMARY SIGN IN / SIGN UP (Continue with Google removed)
+           ======================================================== */}
+        {step === 1 && (authMode === 'login' || authMode === 'signup') && (
           <div className="space-y-4 animate-fadeIn">
             {/* Sign In / Sign Up Tab Switcher */}
             <div className="flex rounded-2xl bg-slate-950 p-1 border border-slate-800 text-xs">
@@ -359,43 +525,6 @@ export default function AuthScreen({ onLoginSuccess }) {
               >
                 <UserPlus size={13} /> Create Account
               </button>
-            </div>
-
-            {/* Google Verified Sign-In Trigger */}
-            <button
-              type="button"
-              onClick={() => {
-                setShowGoogleModal(true);
-                setGoogleError('');
-                soundManager.playKissPop();
-              }}
-              className="w-full py-2.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center justify-center gap-2.5 transition active:scale-95 shadow-md"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span>Continue with Google</span>
-            </button>
-
-            <div className="relative flex py-0.5 items-center">
-              <div className="flex-grow border-t border-slate-800" />
-              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase font-semibold">Or with Email</span>
-              <div className="flex-grow border-t border-slate-800" />
             </div>
 
             {/* Email + Password Form */}
@@ -462,9 +591,27 @@ export default function AuthScreen({ onLoginSuccess }) {
                 </div>
               </div>
 
-              {/* PASSWORD */}
+              {/* PASSWORD + FORGOT PASSWORD BUTTON */}
               <div>
-                <label className="text-xs text-slate-300 font-medium block mb-1">Password</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-slate-300 font-medium">Password</label>
+                  {authMode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setForgotEmail(email);
+                        setForgotStep(1);
+                        setErrorMsg('');
+                        setSuccessMsg('');
+                        setAuthMode('forgot_password');
+                        soundManager.playKissPop();
+                      }}
+                      className="text-[11px] text-pink-400 hover:text-pink-300 font-semibold underline transition"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <Lock size={15} className="absolute left-3.5 top-3 text-slate-500" />
                   <input
@@ -509,6 +656,14 @@ export default function AuthScreen({ onLoginSuccess }) {
                 </div>
               )}
 
+              {/* SUCCESS MESSAGE */}
+              {successMsg && (
+                <div className="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2">
+                  <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+                  <span>{successMsg}</span>
+                </div>
+              )}
+
               {/* ERROR ALERT */}
               {errorMsg && (
                 <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2 animate-shake">
@@ -527,8 +682,8 @@ export default function AuthScreen({ onLoginSuccess }) {
                   {isSubmitting
                     ? 'Verifying...'
                     : authMode === 'login'
-                    ? 'Sign In & Continue'
-                    : 'Register Account & Continue'}
+                    ? 'Sign In & Get Email OTP'
+                    : 'Register Account & Get OTP'}
                 </span>
                 <ArrowRight size={15} />
               </button>
@@ -536,7 +691,257 @@ export default function AuthScreen({ onLoginSuccess }) {
           </div>
         )}
 
-        {/* STEP 2: PARTNER CODE PAIRING (DUAL ROLE CONNECT) */}
+        {/* ========================================================
+            VIEW 2: 📩 LOGIN EMAIL OTP VERIFICATION
+           ======================================================== */}
+        {step === 1 && authMode === 'login_otp' && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className="text-center space-y-1">
+              <div className="w-11 h-11 mx-auto rounded-full bg-pink-500/20 text-pink-400 flex items-center justify-center">
+                <ShieldCheck size={24} className="stroke-[2.5]" />
+              </div>
+              <h3 className="text-base font-bold text-white">Enter Email Verification Code</h3>
+              <p className="text-xs text-slate-400">
+                We sent a 6-digit OTP code to <br />
+                <span className="text-pink-300 font-bold font-mono">{email}</span>
+              </p>
+            </div>
+
+            <form onSubmit={handleVerifyLoginOtp} className="space-y-3.5">
+              <div>
+                <label className="text-[11px] text-slate-300 font-semibold block mb-1.5 text-center">
+                  6-Digit OTP Code
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  required
+                  autoFocus
+                  value={loginOtpInput}
+                  onChange={(e) => {
+                    setLoginOtpInput(e.target.value.replace(/\D/g, ''));
+                    setErrorMsg('');
+                  }}
+                  placeholder="• • • • • •"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-2xl py-3 text-center text-white font-mono text-2xl tracking-[0.4em] font-extrabold focus:outline-none focus:border-pink-500 shadow-inner"
+                />
+              </div>
+
+              {/* ERROR ALERT */}
+              {errorMsg && (
+                <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+                  <AlertCircle size={15} className="text-rose-400 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {/* VERIFY BUTTON */}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full py-3 rounded-2xl bg-gradient-to-r from-pink-500 via-rose-500 to-purple-600 hover:opacity-95 text-white font-bold text-xs shadow-lg shadow-pink-500/25 flex items-center justify-center gap-2 transition active:scale-95"
+              >
+                <span>{isSubmitting ? 'Verifying OTP...' : 'Verify OTP & Enter Love32'}</span>
+                <Check size={16} />
+              </button>
+
+              {/* RESEND OTP & BACK BUTTON */}
+              <div className="flex items-center justify-between text-xs pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('login');
+                    setErrorMsg('');
+                    setActiveOtpNotification(null);
+                  }}
+                  className="text-slate-400 hover:text-white flex items-center gap-1"
+                >
+                  <ArrowLeft size={13} /> Back
+                </button>
+
+                <button
+                  type="button"
+                  disabled={resendCountdown > 0}
+                  onClick={handleResendLoginOtp}
+                  className={`font-semibold ${
+                    resendCountdown > 0
+                      ? 'text-slate-500 cursor-not-allowed'
+                      : 'text-pink-400 hover:text-pink-300 underline'
+                  }`}
+                >
+                  {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend OTP Code'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* ========================================================
+            VIEW 3: 🔑 FORGOT PASSWORD (EMAIL OTP RESET)
+           ======================================================== */}
+        {step === 1 && authMode === 'forgot_password' && (
+          <div className="space-y-4 animate-fadeIn">
+            <div className="text-center space-y-1">
+              <div className="w-11 h-11 mx-auto rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                <KeyRound size={22} className="stroke-[2.5]" />
+              </div>
+              <h3 className="text-base font-bold text-white">Reset Password</h3>
+              <p className="text-xs text-slate-400">
+                {forgotStep === 1
+                  ? 'Enter your registered email to receive an OTP code'
+                  : 'Enter the OTP and set your new password'}
+              </p>
+            </div>
+
+            {/* STEP A: ENTER EMAIL */}
+            {forgotStep === 1 && (
+              <form onSubmit={handleForgotSendOtp} className="space-y-3">
+                <div>
+                  <label className="text-xs text-slate-300 font-medium block mb-1">Registered Email Address</label>
+                  <div className="relative">
+                    <Mail size={15} className="absolute left-3.5 top-3 text-slate-500" />
+                    <input
+                      type="email"
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => {
+                        setForgotEmail(e.target.value);
+                        setErrorMsg('');
+                      }}
+                      placeholder="lakee@gmail.com"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                </div>
+
+                {errorMsg && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle size={15} className="text-rose-400 shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-rose-500 text-white font-bold text-xs shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 transition active:scale-95"
+                >
+                  <span>Send Reset OTP</span>
+                  <Send size={14} />
+                </button>
+
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode('login');
+                      setErrorMsg('');
+                      setActiveOtpNotification(null);
+                    }}
+                    className="text-xs text-slate-400 hover:text-white underline flex items-center justify-center gap-1 mx-auto"
+                  >
+                    <ArrowLeft size={13} /> Return to Sign In
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* STEP B: ENTER OTP + NEW PASSWORD */}
+            {forgotStep === 2 && (
+              <form onSubmit={handleForgotResetPassword} className="space-y-3">
+                <div>
+                  <label className="text-xs text-slate-300 font-medium block mb-1">6-Digit Reset OTP Code</label>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    required
+                    value={forgotOtpInput}
+                    onChange={(e) => {
+                      setForgotOtpInput(e.target.value.replace(/\D/g, ''));
+                      setErrorMsg('');
+                    }}
+                    placeholder="• • • • • •"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-2xl py-2.5 text-center text-white font-mono text-xl tracking-[0.3em] font-bold focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-300 font-medium block mb-1">New Password</label>
+                  <div className="relative">
+                    <Lock size={15} className="absolute left-3.5 top-3 text-slate-500" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={forgotNewPassword}
+                      onChange={(e) => {
+                        setForgotNewPassword(e.target.value);
+                        setErrorMsg('');
+                      }}
+                      placeholder="Min 6 characters"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-10 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-2.5 text-slate-400 hover:text-white"
+                    >
+                      {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-slate-300 font-medium block mb-1">Confirm New Password</label>
+                  <div className="relative">
+                    <Lock size={15} className="absolute left-3.5 top-3 text-slate-500" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={forgotConfirmPassword}
+                      onChange={(e) => {
+                        setForgotConfirmPassword(e.target.value);
+                        setErrorMsg('');
+                      }}
+                      placeholder="Repeat new password"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+                </div>
+
+                {errorMsg && (
+                  <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+                    <AlertCircle size={15} className="text-rose-400 shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 via-pink-600 to-rose-500 text-white font-bold text-xs shadow-lg shadow-purple-500/25 flex items-center justify-center gap-2 transition active:scale-95"
+                >
+                  <span>Update Password & Save</span>
+                  <Check size={16} />
+                </button>
+
+                <div className="text-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotStep(1);
+                      setErrorMsg('');
+                    }}
+                    className="text-xs text-slate-400 hover:text-white underline flex items-center justify-center gap-1 mx-auto"
+                  >
+                    <ArrowLeft size={13} /> Re-enter Email
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================
+            STEP 2: PARTNER CODE PAIRING (DUAL ROLE CONNECT)
+           ======================================================== */}
         {step === 2 && (
           <div className="space-y-4 animate-fadeIn">
             <div className="text-center">
@@ -548,55 +953,58 @@ export default function AuthScreen({ onLoginSuccess }) {
             </div>
 
             {/* OPTION 1: HOST / PARTNER 1 (Generate Code) */}
-            <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-950/40 via-purple-950/40 to-slate-950 border border-rose-500/30 text-center space-y-2.5">
-              <div className="flex items-center justify-center gap-1.5 text-[11px] text-amber-300 uppercase font-bold">
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+              <div className="flex items-center gap-1.5 text-[11px] text-amber-300 uppercase font-bold">
                 <Sparkles size={13} />
                 <span>Option A: I am Partner 1 (Host)</span>
               </div>
-              <div className="text-2xl font-black font-mono tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-rose-300 to-pink-300 select-all">
-                {myPairCode}
+              <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-rose-500/30">
+                <div>
+                  <span className="text-[10px] text-slate-400 block">Your Secret Partner Code:</span>
+                  <span className="text-lg font-black tracking-widest text-rose-400 font-mono">
+                    {myPairCode}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={handleCopyMyCode}
+                    className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs flex items-center gap-1 transition"
+                  >
+                    {copiedCode ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                    <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+                  </button>
+                  <button
+                    onClick={handleWhatsAppShare}
+                    className="p-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs flex items-center gap-1 transition"
+                  >
+                    <Share2 size={14} />
+                    <span>WhatsApp</span>
+                  </button>
+                </div>
               </div>
-              <p className="text-[10px] text-slate-300">Give this code to your partner to connect together</p>
 
-              <div className="flex gap-2 justify-center">
-                <button
-                  type="button"
-                  onClick={handleCopyMyCode}
-                  className="py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-rose-200 text-[11px] font-bold flex items-center gap-1 transition active:scale-95"
-                >
-                  {copiedCode ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                  <span>{copiedCode ? 'Copied!' : 'Copy Code'}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCopyInviteLink}
-                  className="py-1.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-pink-200 text-[11px] font-bold flex items-center gap-1 transition active:scale-95"
-                  title="Copy direct invite link for WhatsApp"
-                >
-                  {copiedLink ? <Check size={12} className="text-emerald-400" /> : <Share2 size={12} />}
-                  <span>{copiedLink ? 'Link Copied!' : 'WhatsApp Link'}</span>
-                </button>
-              </div>
+              <p className="text-[10px] text-slate-400 leading-tight">
+                Give this code to your partner so they can join you.
+              </p>
 
               <button
-                type="button"
-                onClick={handleHostEnter}
+                onClick={handleStartAsHost}
                 disabled={isSubmitting}
-                className="w-full mt-1 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 text-white font-bold text-xs shadow-md shadow-rose-500/20 flex items-center justify-center gap-1.5 transition active:scale-95"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center justify-center gap-1.5"
               >
-                <span>Enter Room as Partner 1 (Host)</span>
-                <ArrowRight size={13} />
+                <span>{isSubmitting ? 'Entering Room...' : 'Enter Room as Partner 1 (Host)'}</span>
+                <ArrowRight size={14} />
               </button>
             </div>
 
-            <div className="relative flex py-1 items-center">
+            <div className="relative flex py-0.5 items-center">
               <div className="flex-grow border-t border-slate-800" />
-              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase font-semibold">Or</span>
+              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase font-bold">Or</span>
               <div className="flex-grow border-t border-slate-800" />
             </div>
 
             {/* OPTION 2: JOIN / PARTNER 2 (Enter Partner's Code) */}
-            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
               <div className="flex items-center gap-1.5 text-[11px] text-sky-300 uppercase font-bold">
                 <Users size={13} />
                 <span>Option B: I am Partner 2 (Join)</span>
@@ -630,91 +1038,6 @@ export default function AuthScreen({ onLoginSuccess }) {
           </div>
         )}
       </div>
-
-      {/* DEDICATED GOOGLE ACCOUNT SIGN-IN MODAL */}
-      {showGoogleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl relative">
-            <button
-              onClick={() => setShowGoogleModal(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-800 text-slate-400 hover:text-white"
-            >
-              <X size={16} />
-            </button>
-
-            {/* Google Header */}
-            <div className="text-center space-y-1">
-              <svg className="w-8 h-8 mx-auto" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <h3 className="text-base font-bold text-white">Sign in with Google</h3>
-              <p className="text-xs text-slate-400">Choose your Google Account for Love32</p>
-            </div>
-
-            {/* Google Credentials Verification Form */}
-            <form onSubmit={handleGoogleFormSubmit} className="space-y-3 pt-1">
-              <div>
-                <label className="text-xs text-slate-300 font-medium block mb-1">Google Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={googleEmail}
-                  onChange={(e) => {
-                    setGoogleEmail(e.target.value);
-                    setGoogleError('');
-                  }}
-                  placeholder="username@gmail.com"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-xs focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-slate-300 font-medium block mb-1">Google Password</label>
-                <input
-                  type="password"
-                  required
-                  value={googlePassword}
-                  onChange={(e) => {
-                    setGooglePassword(e.target.value);
-                    setGoogleError('');
-                  }}
-                  placeholder="••••••••"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-xs focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              {googleError && (
-                <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs">
-                  {googleError}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={isGoogleSubmitting}
-                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition active:scale-95"
-              >
-                {isGoogleSubmitting ? 'Authenticating with Google...' : 'Verify & Continue with Google'}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

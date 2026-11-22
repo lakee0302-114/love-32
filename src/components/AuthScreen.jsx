@@ -16,10 +16,46 @@ import {
   LogIn,
   UserPlus,
   Share2,
-  Users
+  Users,
+  AlertCircle,
+  X
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../utils/audio';
+
+const ACCOUNTS_DB_KEY = 'love32_registered_accounts_db';
+
+// Get all registered accounts
+function getAccountsDB() {
+  try {
+    const raw = localStorage.getItem(ACCOUNTS_DB_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  // Default registered couple accounts
+  return {
+    'lakee@gmail.com': {
+      email: 'lakee@gmail.com',
+      password: 'password123',
+      name: 'Lakee',
+      avatar: '🤴',
+    },
+    'nethmi@gmail.com': {
+      email: 'nethmi@gmail.com',
+      password: 'password123',
+      name: 'Nethmi',
+      avatar: '🌸',
+    },
+  };
+}
+
+// Save newly registered account
+function saveAccountToDB(account) {
+  const db = getAccountsDB();
+  db[account.email.toLowerCase().trim()] = account;
+  try {
+    localStorage.setItem(ACCOUNTS_DB_KEY, JSON.stringify(db));
+  } catch (e) {}
+}
 
 export default function AuthScreen({ onLoginSuccess }) {
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
@@ -28,6 +64,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState('🤴');
@@ -37,6 +74,14 @@ export default function AuthScreen({ onLoginSuccess }) {
   const [copiedLink, setCopiedLink] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Google Modal State
+  const [showGoogleModal, setShowGoogleModal] = useState(false);
+  const [googleEmail, setGoogleEmail] = useState('');
+  const [googlePassword, setGooglePassword] = useState('');
+  const [googleError, setGoogleError] = useState('');
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
   // Check URL query parameters for invite code (?code=LOVE-XXXX or ?room=LOVE-XXXX)
   useEffect(() => {
@@ -52,38 +97,150 @@ export default function AuthScreen({ onLoginSuccess }) {
 
   const avatarOptions = ['🤴', '👸', '🌸', '👨‍💻', '🐱', '🐰', '🐻', '🦊', '💖', '✨'];
 
-  // Handle Email + Password Submit (Login or Sign Up)
+  // Handle Real Authentication (Strict Validation)
   const handleAuthSubmit = (e) => {
     e.preventDefault();
     setErrorMsg('');
+    setSuccessMsg('');
 
-    if (!email.trim() || !email.includes('@')) {
-      setErrorMsg('Please enter a valid Google/Email address');
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanPass = password.trim();
+
+    // 1. Strict Email Format Check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setErrorMsg('❌ Please enter a valid email address (e.g. name@gmail.com)');
       return;
     }
-    if (password.length < 6) {
-      setErrorMsg('Password must be at least 6 characters');
+
+    // 2. Password Length Check
+    if (cleanPass.length < 6) {
+      setErrorMsg('❌ Password must be at least 6 characters long');
       return;
     }
 
-    setIsSubmitting(true);
+    const db = getAccountsDB();
+
+    if (authMode === 'login') {
+      // SIGN IN MODE: Strictly check database
+      const existingUser = db[cleanEmail];
+      if (!existingUser) {
+        setErrorMsg('❌ No account found with this email! Please click "Create Account" first to register.');
+        return;
+      }
+
+      if (existingUser.password !== cleanPass) {
+        setErrorMsg('❌ Incorrect password! Please enter the correct password.');
+        return;
+      }
+
+      // Successful Sign In
+      setName(existingUser.name);
+      setAvatar(existingUser.avatar);
+      setIsSubmitting(true);
+      soundManager.playKissPop();
+
+      setTimeout(() => {
+        setIsSubmitting(false);
+        soundManager.playChime();
+        setStep(2);
+      }, 600);
+    } else {
+      // CREATE ACCOUNT (SIGN UP) MODE
+      if (!name.trim()) {
+        setErrorMsg('❌ Please enter your display name');
+        return;
+      }
+
+      if (cleanPass !== confirmPassword.trim()) {
+        setErrorMsg('❌ Passwords do not match! Please check again.');
+        return;
+      }
+
+      if (db[cleanEmail]) {
+        setErrorMsg('⚠️ This email is already registered! Please switch to the "Sign In" tab.');
+        return;
+      }
+
+      // Save valid new account
+      const newAccount = {
+        email: cleanEmail,
+        password: cleanPass,
+        name: name.trim(),
+        avatar,
+        createdAt: Date.now(),
+      };
+      saveAccountToDB(newAccount);
+
+      setIsSubmitting(true);
+      soundManager.playSuccess();
+      try {
+        confetti({ particleCount: 70, spread: 70 });
+      } catch (err) {}
+
+      setTimeout(() => {
+        setIsSubmitting(false);
+        soundManager.playChime();
+        setStep(2);
+      }, 700);
+    }
+  };
+
+  // Real Google Sign-in Verification
+  const handleGoogleFormSubmit = (e) => {
+    e.preventDefault();
+    setGoogleError('');
+
+    const cleanEmail = googleEmail.toLowerCase().trim();
+    const cleanPass = googlePassword.trim();
+
+    if (!cleanEmail || !cleanEmail.endsWith('@gmail.com')) {
+      setGoogleError('❌ Please enter a valid Google Account (@gmail.com)');
+      return;
+    }
+    if (cleanPass.length < 6) {
+      setGoogleError('❌ Google password must be at least 6 characters');
+      return;
+    }
+
+    setIsGoogleSubmitting(true);
     soundManager.playKissPop();
 
     setTimeout(() => {
-      setIsSubmitting(false);
-      soundManager.playChime();
-      setStep(2);
-    }, 600);
-  };
+      setIsGoogleSubmitting(false);
+      const db = getAccountsDB();
+      let user = db[cleanEmail];
 
-  // Google 1-Click Sign-in Simulation
-  const handleGoogleSignIn = () => {
-    soundManager.playKissPop();
-    const mockEmail = name ? `${name.toLowerCase().replace(/\s+/g, '')}@gmail.com` : 'lakee@gmail.com';
-    setEmail(mockEmail);
-    setPassword('google-auth-token-secured');
-    soundManager.playChime();
-    setStep(2);
+      if (user) {
+        // Existing Google User: Verify password
+        if (user.password !== cleanPass) {
+          setGoogleError('❌ Incorrect password for this Google account.');
+          return;
+        }
+      } else {
+        // New Google User: Register automatically
+        const autoName = cleanEmail.split('@')[0];
+        user = {
+          email: cleanEmail,
+          password: cleanPass,
+          name: autoName.charAt(0).toUpperCase() + autoName.slice(1),
+          avatar: '🤴',
+          isGoogle: true,
+          createdAt: Date.now(),
+        };
+        saveAccountToDB(user);
+      }
+
+      setEmail(user.email);
+      setName(user.name);
+      setAvatar(user.avatar);
+      setShowGoogleModal(false);
+      soundManager.playChime();
+      try {
+        confetti({ particleCount: 80, spread: 80 });
+      } catch (e) {}
+      setStep(2);
+    }, 1000);
   };
 
   const handleCopyMyCode = () => {
@@ -181,6 +338,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                 onClick={() => {
                   setAuthMode('login');
                   setErrorMsg('');
+                  setSuccessMsg('');
                   soundManager.playKissPop();
                 }}
                 className={`flex-1 py-1.5 rounded-xl font-bold transition flex items-center justify-center gap-1.5 ${
@@ -196,6 +354,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                 onClick={() => {
                   setAuthMode('signup');
                   setErrorMsg('');
+                  setSuccessMsg('');
                   soundManager.playKissPop();
                 }}
                 className={`flex-1 py-1.5 rounded-xl font-bold transition flex items-center justify-center gap-1.5 ${
@@ -208,11 +367,15 @@ export default function AuthScreen({ onLoginSuccess }) {
               </button>
             </div>
 
-            {/* Google 1-Click Sign In Button */}
+            {/* Google Verified Sign-In Trigger */}
             <button
               type="button"
-              onClick={handleGoogleSignIn}
-              className="w-full py-2.5 px-4 rounded-2xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-white font-semibold text-xs flex items-center justify-center gap-2.5 transition active:scale-95 shadow-sm"
+              onClick={() => {
+                setShowGoogleModal(true);
+                setGoogleError('');
+                soundManager.playKissPop();
+              }}
+              className="w-full py-2.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs flex items-center justify-center gap-2.5 transition active:scale-95 shadow-md"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -235,68 +398,77 @@ export default function AuthScreen({ onLoginSuccess }) {
               <span>Continue with Google</span>
             </button>
 
-            <div className="relative flex py-1 items-center">
+            <div className="relative flex py-0.5 items-center">
               <div className="flex-grow border-t border-slate-800" />
-              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase">Or use email</span>
+              <span className="flex-shrink mx-3 text-[10px] text-slate-500 uppercase font-semibold">Or with Email</span>
               <div className="flex-grow border-t border-slate-800" />
             </div>
 
             {/* Email + Password Form */}
             <form onSubmit={handleAuthSubmit} className="space-y-3">
-              {/* Display Name */}
-              <div>
-                <label className="text-xs text-slate-300 font-medium block mb-1">Your Name</label>
-                <div className="relative">
-                  <User size={15} className="absolute left-3.5 top-3 text-slate-500" />
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="E.g. Lakee or Nethmi"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-500"
-                  />
+              {/* DISPLAY NAME (Only on Create Account mode) */}
+              {authMode === 'signup' && (
+                <div>
+                  <label className="text-xs text-slate-300 font-medium block mb-1">Your Display Name</label>
+                  <div className="relative">
+                    <User size={15} className="absolute left-3.5 top-3 text-slate-500" />
+                    <input
+                      type="text"
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="E.g. Lakee or Nethmi"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Avatar Selector */}
-              <div>
-                <label className="text-xs text-slate-300 font-medium block mb-1.5">Choose Avatar</label>
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-                  {avatarOptions.map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setAvatar(opt)}
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition shrink-0 ${
-                        avatar === opt
-                          ? 'bg-rose-500 border-2 border-white scale-110 shadow'
-                          : 'bg-slate-950/80 border border-slate-800 hover:bg-slate-800'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+              {/* AVATAR SELECTOR (Only on Create Account mode) */}
+              {authMode === 'signup' && (
+                <div>
+                  <label className="text-xs text-slate-300 font-medium block mb-1.5">Choose Avatar</label>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                    {avatarOptions.map((opt) => (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => setAvatar(opt)}
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center text-lg transition shrink-0 ${
+                          avatar === opt
+                            ? 'bg-rose-500 border-2 border-white scale-110 shadow'
+                            : 'bg-slate-950/80 border border-slate-800 hover:bg-slate-800'
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Email */}
+              {/* EMAIL ADDRESS */}
               <div>
-                <label className="text-xs text-slate-300 font-medium block mb-1">Google / Email Address</label>
+                <label className="text-xs text-slate-300 font-medium block mb-1">
+                  {authMode === 'login' ? 'Registered Email Address' : 'Your Email Address'}
+                </label>
                 <div className="relative">
                   <Mail size={15} className="absolute left-3.5 top-3 text-slate-500" />
                   <input
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="lakee@gmail.com"
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      setErrorMsg('');
+                    }}
+                    placeholder="name@gmail.com"
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-500"
                   />
                 </div>
               </div>
 
-              {/* Password */}
+              {/* PASSWORD */}
               <div>
                 <label className="text-xs text-slate-300 font-medium block mb-1">Password</label>
                 <div className="relative">
@@ -305,8 +477,11 @@ export default function AuthScreen({ onLoginSuccess }) {
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setErrorMsg('');
+                    }}
+                    placeholder="Min 6 characters"
                     className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-10 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-500"
                   />
                   <button
@@ -319,18 +494,48 @@ export default function AuthScreen({ onLoginSuccess }) {
                 </div>
               </div>
 
-              {errorMsg && (
-                <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[11px] text-center">
-                  {errorMsg}
+              {/* CONFIRM PASSWORD (Only on Create Account mode) */}
+              {authMode === 'signup' && (
+                <div>
+                  <label className="text-xs text-slate-300 font-medium block mb-1">Confirm Password</label>
+                  <div className="relative">
+                    <Lock size={15} className="absolute left-3.5 top-3 text-slate-500" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value);
+                        setErrorMsg('');
+                      }}
+                      placeholder="Repeat password"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-2xl pl-10 pr-3.5 py-2.5 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
                 </div>
               )}
 
+              {/* ERROR ALERT */}
+              {errorMsg && (
+                <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2 animate-shake">
+                  <AlertCircle size={15} className="text-rose-400 shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {/* SUBMIT BUTTON */}
               <button
                 type="submit"
                 disabled={isSubmitting}
                 className="w-full py-3 rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 hover:from-rose-600 hover:to-purple-700 text-white font-bold text-xs shadow-lg shadow-rose-500/25 flex items-center justify-center gap-2 transition active:scale-95"
               >
-                <span>{isSubmitting ? 'Authenticating...' : authMode === 'login' ? 'Sign In & Continue' : 'Create Account & Continue'}</span>
+                <span>
+                  {isSubmitting
+                    ? 'Verifying...'
+                    : authMode === 'login'
+                    ? 'Sign In & Continue'
+                    : 'Register Account & Continue'}
+                </span>
                 <ArrowRight size={15} />
               </button>
             </form>
@@ -343,7 +548,9 @@ export default function AuthScreen({ onLoginSuccess }) {
             <div className="text-center">
               <span className="text-xs font-bold text-rose-300 uppercase tracking-wider">Step 2: Connect</span>
               <h3 className="text-base font-bold text-white mt-0.5">Pair with Your Partner</h3>
-              <p className="text-[11px] text-slate-400">Signed in as <span className="text-rose-300 font-semibold">{name || email}</span></p>
+              <p className="text-[11px] text-slate-400">
+                Logged in as <span className="text-rose-300 font-semibold">{name || email}</span>
+              </p>
             </div>
 
             {/* OPTION 1: HOST / PARTNER 1 (Generate Code) */}
@@ -400,9 +607,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                 <Users size={13} />
                 <span>Option B: I am Partner 2 (Join)</span>
               </div>
-              <p className="text-[10px] text-slate-400">
-                Enter the code sent by your partner:
-              </p>
+              <p className="text-[10px] text-slate-400">Enter the code sent by your partner:</p>
 
               <form onSubmit={handleJoinWithPartnerCode} className="space-y-2">
                 <div className="flex gap-2">
@@ -431,6 +636,91 @@ export default function AuthScreen({ onLoginSuccess }) {
           </div>
         )}
       </div>
+
+      {/* DEDICATED GOOGLE ACCOUNT SIGN-IN MODAL */}
+      {showGoogleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="bg-slate-900 border border-slate-700/80 rounded-3xl p-6 max-w-sm w-full space-y-4 shadow-2xl relative">
+            <button
+              onClick={() => setShowGoogleModal(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-800 text-slate-400 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+
+            {/* Google Header */}
+            <div className="text-center space-y-1">
+              <svg className="w-8 h-8 mx-auto" viewBox="0 0 24 24">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                />
+              </svg>
+              <h3 className="text-base font-bold text-white">Sign in with Google</h3>
+              <p className="text-xs text-slate-400">Choose your Google Account for Love32</p>
+            </div>
+
+            {/* Google Credentials Verification Form */}
+            <form onSubmit={handleGoogleFormSubmit} className="space-y-3 pt-1">
+              <div>
+                <label className="text-xs text-slate-300 font-medium block mb-1">Google Email Address</label>
+                <input
+                  type="email"
+                  required
+                  value={googleEmail}
+                  onChange={(e) => {
+                    setGoogleEmail(e.target.value);
+                    setGoogleError('');
+                  }}
+                  placeholder="username@gmail.com"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-slate-300 font-medium block mb-1">Google Password</label>
+                <input
+                  type="password"
+                  required
+                  value={googlePassword}
+                  onChange={(e) => {
+                    setGooglePassword(e.target.value);
+                    setGoogleError('');
+                  }}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-white text-xs focus:outline-none focus:border-blue-500"
+                />
+              </div>
+
+              {googleError && (
+                <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs">
+                  {googleError}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isGoogleSubmitting}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md transition active:scale-95"
+              >
+                {isGoogleSubmitting ? 'Authenticating with Google...' : 'Verify & Continue with Google'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

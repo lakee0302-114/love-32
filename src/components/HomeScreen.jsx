@@ -25,7 +25,10 @@ import {
   Plus,
   ListTodo,
   Crosshair,
-  Radio
+  Radio,
+  Share2,
+  KeyRound,
+  Users
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 
@@ -41,6 +44,7 @@ export default function HomeScreen({
   onUpdateSpeed,
   onToggleBucketItem,
   onAddBucketItem,
+  partnerCode,
 }) {
   const currentUser = currentUserId === 'partnerA' ? state.partnerA : state.partnerB;
   const partnerUser = currentUserId === 'partnerA' ? state.partnerB : state.partnerA;
@@ -168,44 +172,88 @@ export default function HomeScreen({
 
   return (
     <div className="space-y-4 pb-20 animate-fadeIn">
-      {/* 1. Days Together Counter Banner */}
-      <div className="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-rose-950/70 via-pink-950/50 to-slate-900/80 border border-rose-500/30 shadow-xl">
-        <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-500/20 rounded-full blur-2xl pointer-events-none" />
-        
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-1.5 text-rose-300 text-xs font-semibold uppercase tracking-wider">
-            <Heart size={14} className="text-rose-400 fill-rose-400 animate-pulse-heart" />
-            <span>Love Journey Together</span>
+      {/* 1. Days Together / Partner Connection Banner */}
+      {!partnerUser.isJoined ? (
+        <div className="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-purple-950/70 via-slate-900/90 to-rose-950/70 border border-rose-500/30 shadow-xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold">
+              <span className="w-2 h-2 rounded-full bg-rose-400 animate-ping" />
+              <span>Partner Connection Pending</span>
+            </div>
+            <span className="text-[10px] text-slate-400 font-mono">Code: {partnerCode}</span>
           </div>
-          <span className="text-[11px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
-            Day #{timeTogether.days}
-          </span>
+          <div>
+            <h3 className="text-base font-black text-white">Waiting for Your Partner to Connect 💖</h3>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Share your secret Partner Code with your loved one. As soon as they enter it, your live locations, distance & speed will sync!
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                if (partnerCode) {
+                  navigator.clipboard?.writeText(partnerCode);
+                  soundManager.playKissPop();
+                  alert(`Partner Code ${partnerCode} copied to clipboard! Send it to your partner.`);
+                }
+              }}
+              className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-200 text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-700 transition active:scale-95"
+            >
+              <KeyRound size={13} className="text-rose-400" />
+              <span>Copy Code ({partnerCode || 'LOVE'})</span>
+            </button>
+            <button
+              onClick={() => {
+                const origin = typeof window !== 'undefined' ? window.location.origin : 'https://love-32.vercel.app';
+                const shareUrl = `https://wa.me/?text=${encodeURIComponent(`Hey my love! Connect with me on Love32 Ultra with my Partner Code: ${partnerCode} 💖 Link: ${origin}/?code=${partnerCode}`)}`;
+                window.open(shareUrl, '_blank');
+              }}
+              className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 text-white text-xs font-bold flex items-center gap-1.5 shadow transition active:scale-95"
+            >
+              <Share2 size={13} />
+              <span>WhatsApp Invite</span>
+            </button>
+          </div>
         </div>
+      ) : (
+        <div className="relative overflow-hidden rounded-3xl p-5 bg-gradient-to-br from-rose-950/70 via-pink-950/50 to-slate-900/80 border border-rose-500/30 shadow-xl">
+          <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-500/20 rounded-full blur-2xl pointer-events-none" />
+          
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-1.5 text-rose-300 text-xs font-semibold uppercase tracking-wider">
+              <Heart size={14} className="text-rose-400 fill-rose-400 animate-pulse-heart" />
+              <span>Love Journey Together</span>
+            </div>
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+              Day #{timeTogether.days}
+            </span>
+          </div>
 
-        {/* Live Timer Grid */}
-        <div className="grid grid-cols-4 gap-2 text-center my-2">
-          <div className="bg-slate-950/50 backdrop-blur rounded-2xl p-2.5 border border-rose-500/20 shadow-inner">
-            <div className="text-2xl font-black text-white tracking-tight">{timeTogether.days}</div>
-            <div className="text-[10px] text-rose-300/80 uppercase font-medium">Days</div>
+          {/* Live Timer Grid */}
+          <div className="grid grid-cols-4 gap-2 text-center my-2">
+            <div className="bg-slate-950/50 backdrop-blur rounded-2xl p-2.5 border border-rose-500/20 shadow-inner">
+              <div className="text-2xl font-black text-white tracking-tight">{timeTogether.days}</div>
+              <div className="text-[10px] text-rose-300/80 uppercase font-medium">Days</div>
+            </div>
+            <div className="bg-slate-950/50 backdrop-blur rounded-2xl p-2.5 border border-rose-500/20 shadow-inner">
+              <div className="text-2xl font-black text-pink-200 tracking-tight">{timeTogether.hours}</div>
+              <div className="text-[10px] text-pink-300/80 uppercase font-medium">Hours</div>
+            </div>
+            <div className="bg-slate-950/50 backdrop-blur rounded-2xl p-2.5 border border-rose-500/20 shadow-inner">
+              <div className="text-2xl font-black text-rose-200 tracking-tight">{timeTogether.minutes}</div>
+              <div className="text-[10px] text-rose-300/80 uppercase font-medium">Mins</div>
+            </div>
+            <div className="bg-slate-950/50 backdrop-blur rounded-2xl p-2.5 border border-rose-500/20 shadow-inner">
+              <div className="text-2xl font-black text-amber-300 tracking-tight">{timeTogether.seconds}</div>
+              <div className="text-[10px] text-amber-300/80 uppercase font-medium">Secs</div>
+            </div>
           </div>
-          <div className="bg-slate-950/50 backdrop-blur rounded-2xl p-2.5 border border-rose-500/20 shadow-inner">
-            <div className="text-2xl font-black text-pink-200 tracking-tight">{timeTogether.hours}</div>
-            <div className="text-[10px] text-pink-300/80 uppercase font-medium">Hours</div>
-          </div>
-          <div className="bg-slate-950/50 backdrop-blur rounded-2xl p-2.5 border border-rose-500/20 shadow-inner">
-            <div className="text-2xl font-black text-rose-200 tracking-tight">{timeTogether.minutes}</div>
-            <div className="text-[10px] text-rose-300/80 uppercase font-medium">Mins</div>
-          </div>
-          <div className="bg-slate-950/50 backdrop-blur rounded-2xl p-2.5 border border-rose-500/20 shadow-inner">
-            <div className="text-2xl font-black text-amber-300 tracking-tight">{timeTogether.seconds}</div>
-            <div className="text-[10px] text-amber-300/80 uppercase font-medium">Secs</div>
-          </div>
-        </div>
 
-        <div className="text-center mt-3 text-xs text-rose-200/80 italic">
-          "Every second with you is my favorite memory."
+          <div className="text-center mt-3 text-xs text-rose-200/80 italic">
+            "Every second with you is my favorite memory."
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 2. Interactive Distance Radar with Real-Time Speed Badges */}
       <div className="relative rounded-3xl p-5 bg-slate-900/70 border border-slate-800 shadow-xl overflow-hidden">
@@ -265,35 +313,55 @@ export default function HomeScreen({
           {/* Center Distance Badge */}
           <div className="z-10 bg-slate-950/90 border border-rose-500/50 rounded-2xl px-3.5 py-1.5 shadow-[0_0_25px_rgba(244,63,94,0.3)] text-center backdrop-blur">
             <div className="text-base font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-pink-300">
-              {state.distanceKm !== null && state.distanceKm !== undefined
+              {partnerUser.isJoined && state.distanceKm !== null && state.distanceKm !== undefined
                 ? state.distanceKm >= 1
                   ? `${state.distanceKm} km`
                   : `${Math.round(state.distanceKm * 1000)} m`
-                : '114.5 km'}
+                : '-- km'}
             </div>
             <div className="text-[9px] text-slate-400 font-medium">
-              {state.distanceKm < 0.1 ? 'Right beside you 💑' : 'Live Satellite GPS 🛰️'}
+              {partnerUser.isJoined ? 'Live Satellite GPS 🛰️' : 'Waiting for Partner ⏳'}
             </div>
           </div>
 
           {/* Partner Avatar + Speed Badge */}
           <div className="absolute right-6 flex flex-col items-center">
-            <div className="relative">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-rose-500 to-pink-500 flex items-center justify-center text-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] border-2 border-white/80 animate-bounce-subtle">
-                {partnerUser.avatar}
-              </div>
-              <span className="absolute -bottom-1 -right-1 text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-bold">
-                Love
-              </span>
-            </div>
-            <span className="text-[11px] font-semibold text-pink-300 mt-1 max-w-[75px] truncate text-center">
-              {partnerUser.name}
-            </span>
-            {/* Speed Badge */}
-            <div className="mt-0.5 flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-rose-950/90 border border-rose-500/40 text-[10px] font-bold text-rose-300 shadow">
-              <Gauge size={10} className="text-rose-400" />
-              <span>{partnerUser.speedKmH ? `${partnerUser.speedKmH} km/h` : '0 km/h'}</span>
-            </div>
+            {partnerUser.isJoined ? (
+              <>
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-rose-500 to-pink-500 flex items-center justify-center text-2xl shadow-[0_0_20px_rgba(244,63,94,0.4)] border-2 border-white/80 animate-bounce-subtle">
+                    {partnerUser.avatar || '💖'}
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 text-[10px] px-1.5 py-0.2 rounded-full bg-rose-500 text-white font-bold">
+                    Love
+                  </span>
+                </div>
+                <span className="text-[11px] font-semibold text-pink-300 mt-1 max-w-[75px] truncate text-center">
+                  {partnerUser.name}
+                </span>
+                <div className="mt-0.5 flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-rose-950/90 border border-rose-500/40 text-[10px] font-bold text-rose-300 shadow">
+                  <Gauge size={10} className="text-rose-400" />
+                  <span>{partnerUser.speedKmH ? `${partnerUser.speedKmH} km/h` : '0 km/h'}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="relative">
+                  <div className="w-14 h-14 rounded-full bg-slate-950 border-2 border-dashed border-rose-500/50 flex items-center justify-center text-xl text-rose-400 animate-pulse">
+                    ⏳
+                  </div>
+                  <span className="absolute -bottom-1 -right-1 text-[9px] px-1.5 py-0.2 rounded-full bg-slate-800 text-slate-300 font-bold">
+                    Partner
+                  </span>
+                </div>
+                <span className="text-[11px] font-semibold text-slate-400 mt-1 max-w-[85px] truncate text-center">
+                  Not Connected
+                </span>
+                <div className="mt-0.5 px-2 py-0.5 rounded-full bg-slate-950 border border-slate-800 text-[10px] text-slate-500">
+                  ⏳ Pending
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -301,42 +369,63 @@ export default function HomeScreen({
         <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-slate-800 text-xs">
           {/* Partner's Live Card */}
           <div className="bg-slate-950/50 p-2.5 rounded-2xl border border-slate-800">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold mb-1 flex items-center justify-between">
-              <span>{partnerUser.name}'s Status</span>
-              <span className="text-[9px] text-emerald-400">● Live</span>
-            </div>
-            <div className="text-white font-medium text-xs truncate">
-              {partnerUser.status}
-            </div>
-            <div className="flex items-center gap-1.5 text-slate-400 text-[11px] mt-1">
-              <CloudSun size={12} className="text-amber-400" />
-              <span>{partnerUser.weather}</span>
-            </div>
-            {/* Travel motion status */}
-            <div className="flex items-center gap-1.5 text-[11px] mt-1 text-pink-300">
-              <Activity size={12} className="text-rose-400" />
-              <span className="font-semibold">{partnerUser.activity || 'Resting 🛋️'}</span>
-              <span className="text-[10px] text-slate-400">({partnerUser.speedKmH || 0} km/h)</span>
-            </div>
-            {/* Real Battery Indicator with Alert */}
-            <div className="flex items-center gap-1.5 text-[11px] mt-1 text-slate-300">
-              {partnerUser.isCharging ? (
-                <div className="flex items-center gap-1 text-emerald-400 font-bold">
-                  <Zap size={13} className="fill-emerald-400 animate-pulse" />
-                  <span>{partnerUser.battery}% Charging</span>
+            {partnerUser.isJoined ? (
+              <>
+                <div className="text-[10px] text-slate-400 uppercase font-semibold mb-1 flex items-center justify-between">
+                  <span>{partnerUser.name}'s Status</span>
+                  <span className="text-[9px] text-emerald-400">● Live</span>
                 </div>
-              ) : partnerUser.battery < 20 ? (
-                <div className="flex items-center gap-1 text-rose-400 font-bold">
-                  <BatteryLow size={13} className="animate-pulse" />
-                  <span>{partnerUser.battery}% Low Battery!</span>
+                <div className="text-white font-medium text-xs truncate">
+                  {partnerUser.status}
                 </div>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <Battery size={13} className="text-slate-300" />
-                  <span>{partnerUser.battery}% Phone Battery</span>
+                <div className="flex items-center gap-1.5 text-slate-400 text-[11px] mt-1">
+                  <CloudSun size={12} className="text-amber-400" />
+                  <span>{partnerUser.weather || 'Online'}</span>
                 </div>
-              )}
-            </div>
+                <div className="flex items-center gap-1.5 text-[11px] mt-1 text-pink-300">
+                  <Activity size={12} className="text-rose-400" />
+                  <span className="font-semibold">{partnerUser.activity || 'Resting 🛋️'}</span>
+                  <span className="text-[10px] text-slate-400">({partnerUser.speedKmH || 0} km/h)</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[11px] mt-1 text-slate-300">
+                  {partnerUser.isCharging ? (
+                    <div className="flex items-center gap-1 text-emerald-400 font-bold">
+                      <Zap size={13} className="fill-emerald-400 animate-pulse" />
+                      <span>{partnerUser.battery}% Charging</span>
+                    </div>
+                  ) : partnerUser.battery < 20 ? (
+                    <div className="flex items-center gap-1 text-rose-400 font-bold">
+                      <BatteryLow size={13} className="animate-pulse" />
+                      <span>{partnerUser.battery}% Low Battery!</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Battery size={13} className="text-slate-300" />
+                      <span>{partnerUser.battery}% Phone Battery</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="h-full flex flex-col justify-between py-0.5">
+                <div>
+                  <div className="text-[10px] text-slate-400 uppercase font-semibold mb-1 flex items-center justify-between">
+                    <span>Partner Status</span>
+                    <span className="text-[9px] text-amber-400">⏳ Pending</span>
+                  </div>
+                  <div className="text-slate-200 font-bold text-xs">
+                    Not connected yet
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1 leading-snug">
+                    Real GPS, battery & speed will appear when partner joins with code.
+                  </p>
+                </div>
+                <div className="mt-2 text-[10px] text-rose-300 font-semibold flex items-center gap-1">
+                  <KeyRound size={11} className="text-rose-400" />
+                  <span>Code: {partnerCode}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Your Live Card with Update Button */}
@@ -432,23 +521,27 @@ export default function HomeScreen({
           {/* Partner's Speedometer Card */}
           <div className="p-3 rounded-2xl bg-slate-950/80 border border-rose-500/30 relative overflow-hidden">
             <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-              <span className="font-semibold text-rose-300">{partnerUser.name}</span>
-              <span className="text-[10px] text-rose-400">● Live GPS</span>
+              <span className="font-semibold text-rose-300">
+                {partnerUser.isJoined ? partnerUser.name : 'Partner'}
+              </span>
+              <span className="text-[10px] text-rose-400">
+                {partnerUser.isJoined ? '● Live GPS' : '⏳ Pending'}
+              </span>
             </div>
             <div className="flex items-baseline gap-1 my-1">
               <span className="text-3xl font-black text-white font-mono">
-                {partnerUser.speedKmH ?? 0}
+                {partnerUser.isJoined ? (partnerUser.speedKmH ?? 0) : '--'}
               </span>
               <span className="text-xs text-rose-300 font-bold uppercase">km/h</span>
             </div>
             <div className="text-[11px] font-medium text-slate-300 flex items-center gap-1 truncate">
-              <span>{partnerUser.activity || 'Resting 🛋️'}</span>
+              <span>{partnerUser.isJoined ? (partnerUser.activity || 'Resting 🛋️') : 'Waiting for partner... ⏳'}</span>
             </div>
             {/* Speedometer progress bar */}
             <div className="w-full bg-slate-800 rounded-full h-1.5 mt-2 overflow-hidden">
               <div
                 className="bg-gradient-to-r from-rose-500 to-pink-500 h-full rounded-full transition-all duration-300"
-                style={{ width: `${Math.min(100, ((partnerUser.speedKmH || 0) / 120) * 100)}%` }}
+                style={{ width: `${partnerUser.isJoined ? Math.min(100, ((partnerUser.speedKmH || 0) / 120) * 100) : 0}%` }}
               />
             </div>
           </div>

@@ -59,9 +59,11 @@ export default function Header({
                 )}
               </div>
               <div className="text-[11px] text-slate-400 flex items-center gap-1">
-                <span>{currentUser.name}</span>
+                <span className="font-semibold text-rose-300">{currentUser.name || 'You'}</span>
                 <Heart size={9} className="text-rose-500 fill-rose-500 inline" />
-                <span>{partnerUser.name}</span>
+                <span className={partnerUser.isJoined && partnerUser.name ? 'font-semibold text-pink-300' : 'text-slate-500 italic'}>
+                  {partnerUser.isJoined && partnerUser.name ? partnerUser.name : 'Waiting for partner... ⏳'}
+                </span>
               </div>
             </div>
           </div>

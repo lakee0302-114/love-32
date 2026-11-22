@@ -48,11 +48,13 @@ export default function App() {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
     setSession(authData);
     const assignedRole = authData.role || 'partnerA';
+    const isHost = assignedRole === 'partnerA';
+    const otherRole = isHost ? 'partnerB' : 'partnerA';
     setCurrentUserId(assignedRole);
     setRoomCode(authData.partnerCode);
     saveRoomCode(authData.partnerCode);
 
-    // Update active user profile
+    // Update active user profile and initialize partner as unjoined until they connect
     let nextState;
     setState((prev) => {
       nextState = {
@@ -61,7 +63,21 @@ export default function App() {
           ...prev[assignedRole],
           name: authData.userName || prev[assignedRole].name,
           avatar: authData.userAvatar || prev[assignedRole].avatar,
+          isJoined: true,
         },
+        [otherRole]: prev[otherRole]?.isJoined
+          ? prev[otherRole]
+          : {
+              ...prev[otherRole],
+              name: '',
+              isJoined: false,
+              battery: null,
+              status: 'Waiting to connect... ⏳',
+              speedKmH: 0,
+              activity: 'Not connected',
+              coords: null,
+            },
+        distanceKm: prev[otherRole]?.isJoined ? prev.distanceKm : null,
       };
       return nextState;
     });
@@ -139,10 +155,14 @@ export default function App() {
         setState((prev) => {
           const next = {
             ...prev,
+            isPartnerConnected: true,
+            relationshipStartDate: prev.relationshipStartDate || new Date().toISOString(),
             [otherRole]: {
               ...prev[otherRole],
-              name: event.payload?.name || prev[otherRole].name,
+              name: event.payload?.name || event.senderName,
               avatar: event.payload?.avatar || prev[otherRole].avatar,
+              isJoined: true,
+              status: 'Just joined the room 💕',
             },
           };
           // Broadcast our state back so the newly joined partner receives it immediately
@@ -566,6 +586,7 @@ export default function App() {
               onUpdateSpeed={handleUpdateSpeed}
               onToggleBucketItem={handleToggleBucketItem}
               onAddBucketItem={handleAddBucketItem}
+              partnerCode={roomCode}
             />
           )}
 

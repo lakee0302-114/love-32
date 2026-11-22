@@ -5,40 +5,45 @@ const CHANNEL_NAME = 'love8_sync_channel';
 
 export const initialCoupleState = {
   // Couple profile
-  relationshipStartDate: '2023-08-14T00:00:00',
+  relationshipStartDate: null,
   partnerA: {
     id: 'partnerA',
-    name: 'Kasun',
-    avatar: '👨‍💻',
-    battery: 88,
+    name: '',
+    avatar: '🤴',
+    isJoined: false,
+    battery: 100,
     isCharging: false,
-    status: 'Driving to meet you 🚗',
-    weather: '29°C Sunny',
-    location: 'Colombo, Sri Lanka',
+    status: 'Just joined Love32 ✨',
+    weather: 'Clear Sky',
+    location: '',
     mood: '🥰 In Love',
     lastActive: 'Just now',
-    speedKmH: 48,
-    activity: 'Driving 🚗',
-    durationAtPlace: 'Moving for 15m',
-    isMoving: true,
+    speedKmH: 0,
+    activity: 'Resting 🛋️',
+    durationAtPlace: '',
+    isMoving: false,
+    coords: null,
   },
   partnerB: {
     id: 'partnerB',
-    name: 'Nethmi',
-    avatar: '🌸',
-    battery: 42,
-    isCharging: true,
-    status: 'Walking in the park 🚶‍♀️',
-    weather: '26°C Cozy Breeze',
-    location: 'Kandy, Sri Lanka',
-    mood: '🥺 Missing You',
-    lastActive: '1m ago',
-    speedKmH: 4.5,
-    activity: 'Walking 🚶‍♀️',
-    durationAtPlace: 'Walking for 12m',
-    isMoving: true,
+    name: '',
+    avatar: '💖',
+    isJoined: false,
+    battery: null,
+    isCharging: false,
+    status: 'Waiting to connect... ⏳',
+    weather: '',
+    location: '',
+    mood: '⏳ Waiting',
+    lastActive: 'Not connected yet',
+    speedKmH: 0,
+    activity: 'Not connected',
+    durationAtPlace: '',
+    isMoving: false,
+    coords: null,
   },
-  distanceKm: 114.5,
+  distanceKm: null,
+  isPartnerConnected: false,
   currentUserId: 'partnerA', // Active viewer
 
   // Virtual Pet State
@@ -158,6 +163,17 @@ export const loadSavedState = () => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      // Clean legacy placeholder names so unjoined partners don't show fake info
+      if (parsed.partnerA?.name === 'Kasun' && !parsed.partnerA?.isJoined) {
+        parsed.partnerA.name = '';
+        parsed.partnerA.isJoined = false;
+      }
+      if (parsed.partnerB?.name === 'Nethmi' && !parsed.partnerB?.isJoined) {
+        parsed.partnerB.name = '';
+        parsed.partnerB.isJoined = false;
+        parsed.partnerB.status = 'Waiting to connect... ⏳';
+        parsed.partnerB.battery = null;
+      }
       return {
         ...initialCoupleState,
         ...parsed,

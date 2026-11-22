@@ -8,7 +8,7 @@ import MemoriesTimeline from './components/MemoriesTimeline';
 import CoupleGames from './components/CoupleGames';
 import WidgetStudio from './components/WidgetStudio';
 import ScreenBombOverlay from './components/ScreenBombOverlay';
-import FirebaseModal from './components/FirebaseModal';
+import AuthScreen from './components/AuthScreen';
 
 import {
   initialCoupleState,
@@ -25,18 +25,56 @@ import {
 import { soundManager } from './utils/audio';
 import confetti from 'canvas-confetti';
 
+const AUTH_STORAGE_KEY = 'love8_user_auth_session';
+
 export default function App() {
+  const [session, setSession] = useState(() => {
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+
   const [state, setState] = useState(() => loadSavedState());
   const [activeTab, setActiveTab] = useState('home');
   const [currentUserId, setCurrentUserId] = useState('partnerA');
   const [isMuted, setIsMuted] = useState(false);
   const [activeScreenBomb, setActiveScreenBomb] = useState(null);
   const [quickToast, setQuickToast] = useState(null);
-  const [showFirebaseModal, setShowFirebaseModal] = useState(false);
-  const [roomCode, setRoomCode] = useState(() => getSavedRoomCode());
+  const [roomCode, setRoomCode] = useState(() => session?.partnerCode || getSavedRoomCode());
+
+  // Handle Login & Pairing Completion
+  const handleLoginSuccess = (authData) => {
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
+    setSession(authData);
+    setRoomCode(authData.partnerCode);
+    saveRoomCode(authData.partnerCode);
+
+    // Update partnerA name and avatar if newly logged in
+    setState((prev) => ({
+      ...prev,
+      partnerA: {
+        ...prev.partnerA,
+        name: authData.userName || prev.partnerA.name,
+        avatar: authData.userAvatar || prev.partnerA.avatar,
+      },
+    }));
+
+    showToast(`Welcome ${authData.userName}! Connected to Room ${authData.partnerCode} 💖`);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    setSession(null);
+    showToast('Logged out');
+  };
 
   // Google Firebase Realtime Database: Subscribe to real-time couple state & events
   useEffect(() => {
+    if (!session) return;
+
     // Check if partner shared an invite link with ?room=CODE
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
@@ -45,7 +83,7 @@ export default function App() {
     if (roomParam && roomParam.toUpperCase() !== roomCode) {
       setRoomCode(activeRoom);
       saveRoomCode(activeRoom);
-      showToast(`Connected to Firebase Room: ${activeRoom} 🔥`);
+      showToast(`Connected to Partner Code: ${activeRoom} 💖`);
     }
 
     // 1. Subscribe to Firebase State Updates
@@ -74,7 +112,7 @@ export default function App() {
 
       if (event.type === 'HEARTBEAT') {
         soundManager.playHeartbeat();
-        showToast(`💓 ${event.senderName} sent you a heartbeat via Firebase!`);
+        showToast(`💓 ${event.senderName} sent you a heartbeat!`);
       } else if (event.type === 'KISS') {
         soundManager.playKissPop();
         try {
@@ -90,7 +128,7 @@ export default function App() {
       if (typeof unsubState === 'function') unsubState();
       if (typeof unsubEvents === 'function') unsubEvents();
     };
-  }, [roomCode, currentUserId, state.partnerA.name, state.partnerB.name]);
+  }, [session, roomCode, currentUserId, state.partnerA.name, state.partnerB.name]);
 
   // Sync state to local storage whenever it changes
   useEffect(() => {
@@ -195,7 +233,7 @@ export default function App() {
     if (nextState) {
       firebaseSync.updateState(nextState);
     }
-    showToast('✨ Status saved to Firebase Realtime DB!');
+    showToast('✨ Status updated!');
   };
 
   // 5. Update Pet (Firebase Realtime Update)
@@ -268,7 +306,7 @@ export default function App() {
     if (nextState) {
       firebaseSync.updateState(nextState);
     }
-    showToast('📸 Memory photo saved in Firebase DB!');
+    showToast('📸 Memory photo saved in Scrapbook!');
   };
 
   // 9. Add Love Letter (Firebase Realtime Update)
@@ -286,7 +324,7 @@ export default function App() {
     if (nextState) {
       firebaseSync.updateState(nextState);
     }
-    showToast('💌 Secret Love Letter locked in Firebase Vault!');
+    showToast('💌 Secret Love Letter locked in Vault!');
   };
 
   // 10. Save Daily Question Answer (Firebase Realtime Update)
@@ -308,8 +346,13 @@ export default function App() {
     if (nextState) {
       firebaseSync.updateState(nextState);
     }
-    showToast('💖 Your answer saved to Firebase! Partner unlocked!');
+    showToast('💖 Your answer saved! Partner unlocked!');
   };
+
+  // If not logged in or paired yet, show the Login & Partner Code Onboarding Screen
+  if (!session) {
+    return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
+  }
 
   const currentUser = currentUserId === 'partnerA' ? state.partnerA : state.partnerB;
   const partnerUser = currentUserId === 'partnerA' ? state.partnerB : state.partnerA;
@@ -325,14 +368,15 @@ export default function App() {
 
       {/* Main Container - Mobile First Frame */}
       <div className="relative z-10 w-full max-w-md min-h-screen flex flex-col border-x border-slate-900 bg-slate-950/90 shadow-2xl">
-        {/* Header with Firebase Live Badge */}
+        {/* Header - Firebase Live button removed as requested */}
         <Header
           state={state}
           currentUserId={currentUserId}
           onSwitchUser={handleSwitchUser}
           isMuted={isMuted}
           onToggleMute={handleToggleMute}
-          onOpenFirebaseModal={() => setShowFirebaseModal(true)}
+          partnerCode={roomCode}
+          onLogout={handleLogout}
         />
 
         {/* Dynamic View Content */}
@@ -406,18 +450,6 @@ export default function App() {
         {/* Bottom Tab Bar */}
         <Navigation activeTab={activeTab} onSelectTab={setActiveTab} />
       </div>
-
-      {/* Google Firebase Configuration & Room Modal */}
-      {showFirebaseModal && (
-        <FirebaseModal
-          currentRoom={roomCode}
-          onClose={() => setShowFirebaseModal(false)}
-          onRoomChange={(newRoom) => {
-            setRoomCode(newRoom);
-            showToast(`Connected to Firebase Room: ${newRoom} 🔥`);
-          }}
-        />
-      )}
 
       {/* Full-screen Romantic Screen Bomb Alert */}
       {activeScreenBomb && (

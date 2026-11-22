@@ -427,7 +427,7 @@ export default function HomeScreen({
                 key={p.label}
                 onClick={() => handleApplySpeedPreset(p)}
                 className={`p-2 rounded-xl border text-left transition flex items-center gap-1.5 ${
-                  targetUserObj.speedKmH === p.speed
+                  currentUser.speedKmH === p.speed
                     ? 'bg-rose-500/20 border-rose-500 text-white font-bold'
                     : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-900'
                 }`}

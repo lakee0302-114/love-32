@@ -68,14 +68,12 @@ export default function HomeScreen({
   const [newStatus, setNewStatus] = useState(currentUser.status);
   const [newMood, setNewMood] = useState(currentUser.mood);
 
-  // Speed simulator target selection
-  const [speedTargetUser, setSpeedTargetUser] = useState(currentUserId); // 'partnerA' | 'partnerB'
-  const targetUserObj = speedTargetUser === 'partnerA' ? state.partnerA : state.partnerB;
-  const [customSpeed, setCustomSpeed] = useState(targetUserObj.speedKmH || 0);
+  // Speed controls for current user
+  const [customSpeed, setCustomSpeed] = useState(currentUser.speedKmH || 0);
 
   useEffect(() => {
-    setCustomSpeed(targetUserObj.speedKmH || 0);
-  }, [speedTargetUser, targetUserObj.speedKmH]);
+    setCustomSpeed(currentUser.speedKmH || 0);
+  }, [currentUser.speedKmH]);
 
   const moodPresets = [
     '🥰 In Love',
@@ -106,7 +104,7 @@ export default function HomeScreen({
 
   const handleApplySpeedPreset = (preset) => {
     if (onUpdateSpeed) {
-      onUpdateSpeed(speedTargetUser, preset.speed, preset.activity);
+      onUpdateSpeed(currentUserId, preset.speed, preset.activity);
       soundManager.playKissPop();
     }
   };
@@ -122,7 +120,7 @@ export default function HomeScreen({
     else if (val > 85) act = 'Express Speed ⚡';
 
     if (onUpdateSpeed) {
-      onUpdateSpeed(speedTargetUser, val, act);
+      onUpdateSpeed(currentUserId, val, act);
     }
   };
 
@@ -410,34 +408,16 @@ export default function HomeScreen({
           </span>
         </div>
 
-        {/* Speed Simulation & Testing Controls */}
+        {/* Speed Controls for Current User */}
         <div className="pt-2 border-t border-slate-800 space-y-2.5">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
-              Simulate Speed For:
+              Set Your Travel Speed:
             </span>
-            <div className="flex rounded-xl bg-slate-950 p-0.5 border border-slate-800 text-xs">
-              <button
-                onClick={() => setSpeedTargetUser('partnerA')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                  speedTargetUser === 'partnerA'
-                    ? 'bg-sky-500 text-white'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {state.partnerA.name}
-              </button>
-              <button
-                onClick={() => setSpeedTargetUser('partnerB')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
-                  speedTargetUser === 'partnerB'
-                    ? 'bg-rose-500 text-white'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                {state.partnerB.name}
-              </button>
-            </div>
+            <span className="text-xs font-bold text-sky-400 flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800">
+              <span>{currentUser.avatar}</span>
+              <span>{currentUser.name}</span>
+            </span>
           </div>
 
           {/* Quick Speed Presets */}

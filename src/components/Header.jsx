@@ -66,22 +66,13 @@ export default function Header({
             </div>
           </div>
 
-          {/* User Switcher Pill & Controls */}
+          {/* User Profile Pill & Controls (Switcher completely removed as requested) */}
           <div className="flex items-center gap-1.5">
-            {/* Quick Partner Switcher Button for Testing Both Sides */}
-            <button
-              onClick={() => {
-                const next = currentUserId === 'partnerA' ? 'partnerB' : 'partnerA';
-                onSwitchUser(next);
-                soundManager.playKissPop();
-              }}
-              title="Switch viewing partner"
-              className="group flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs font-medium transition"
-            >
+            {/* Active User Badge (Static, cannot switch) */}
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs shadow-sm">
               <span className="text-sm">{currentUser.avatar}</span>
               <span className="font-bold text-white">{currentUser.name}</span>
-              <RefreshCw size={11} className="text-rose-400 group-hover:rotate-180 transition-transform duration-300 ml-0.5" />
-            </button>
+            </div>
 
             {/* Sound Toggle */}
             <button

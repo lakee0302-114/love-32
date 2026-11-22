@@ -58,19 +58,23 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee ../gradle_build.log
 
-      - name: Push failure log to git
-        if: failure()
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b build-log
-          git add gradle_build.log
-          git commit -m "Capture full gradle build log"
-          git push origin build-log --force
-
       - name: Upload Android APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Love32-Ultra-Android-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Prepare APK for Release
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk Love32-Ultra.apk
+
+      - name: Create GitHub Release with Direct Download APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: "Love32 Ultra Android APK"
+          body: "🚀 Official Android APK release for Love32 Ultra. Includes live GPS tracking, travel speedometer, partner pairing, and all Ultra Pro features."
+          files: Love32-Ultra.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

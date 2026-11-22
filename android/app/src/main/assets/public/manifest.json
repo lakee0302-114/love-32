@@ -1,0 +1,19 @@
+{
+  "name": "Love32 Ultra - Couple Distance & Intimacy",
+  "short_name": "Love32",
+  "description": "#1 Couple Distance, Live GPS Speedometer & Intimacy App",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0e15",
+  "theme_color": "#f43f5e",
+  "orientation": "portrait-primary",
+  "categories": ["lifestyle", "social"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

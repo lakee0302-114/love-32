@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Love32 Ultra</string>
+    <string name="title_activity_main">Love32 Ultra</string>
+    <string name="package_name">com.love32.ultra</string>
+    <string name="custom_url_scheme">com.love32.ultra</string>
+</resources>

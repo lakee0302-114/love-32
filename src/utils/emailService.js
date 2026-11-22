@@ -30,9 +30,25 @@ export async function sendOtpToGmail({ toEmail, otpCode, purpose = 'Verification
 
   console.log(`[EmailService] Sending real OTP to ${toEmail}...`);
 
-  // 1. Try Vercel Serverless Function /api/send-otp
+  // 1. Try local/relative Vercel Serverless Function /api/send-otp
   try {
     const res = await fetch('/api/send-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: toEmail,
+        otp: otpCode,
+        purpose,
+      }),
+    });
+    if (res.ok) {
+      return { success: true };
+    }
+  } catch (err) {}
+
+  // 1b. Fallback to production Vercel cloud endpoint (Required for Android APK & local dev)
+  try {
+    const res = await fetch('https://love-32.vercel.app/api/send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

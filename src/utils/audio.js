@@ -20,8 +20,18 @@ class SoundManager {
     }
   }
 
+  // Mobile device romantic haptic vibration
+  triggerVibration(pattern = [120, 60, 120]) {
+    if (typeof window !== 'undefined' && 'navigator' in window && navigator.vibrate) {
+      try {
+        navigator.vibrate(pattern);
+      } catch (e) {}
+    }
+  }
+
   // Realistic double-thump heartbeat sound
   playHeartbeat() {
+    this.triggerVibration([100, 50, 120]);
     if (this.isMuted) return;
     this.init();
     if (!this.ctx) return;
@@ -127,6 +137,34 @@ class SoundManager {
 
       osc.start(now + i * 0.06);
       osc.stop(now + i * 0.06 + 0.2);
+    });
+  }
+
+  // Celebration success chime for goals/bucket list
+  playSuccess() {
+    this.triggerVibration([80, 40, 80, 40, 150]);
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const notes = [440, 554.37, 659.25, 880, 1108.73]; // A major arpeggio
+    const now = this.ctx.currentTime;
+
+    notes.forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+
+      gain.gain.setValueAtTime(0.2, now + idx * 0.07);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.6);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + idx * 0.07);
+      osc.stop(now + idx * 0.07 + 0.65);
     });
   }
 

@@ -139,6 +139,16 @@ export const initialCoupleState = {
   // Couple Quiz Questions
   quizScore: { partnerA: 92, partnerB: 95 },
 
+  // Shared Couple Bucket List & Goals (Love32 Pro)
+  bucketList: [
+    { id: 1, title: '🌅 Watch the sunrise and sunset on the beach together', completed: true, completedBy: 'Both' },
+    { id: 2, title: '🚗 Late night drive with hot chocolate & our favorite songs', completed: true, completedBy: 'Lakee' },
+    { id: 3, title: '⛺ Camping under a starry night sky with campfires', completed: false },
+    { id: 4, title: '🍕 Bake homemade pizza and desserts from scratch together', completed: false },
+    { id: 5, title: '✈️ Go on our dream overseas vacation trip', completed: false },
+    { id: 6, title: '📸 Recreate our very first anniversary photo', completed: false },
+  ],
+
   // Live Screen Bomb notification to trigger
   incomingScreenBomb: null,
 };

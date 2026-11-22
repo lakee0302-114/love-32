@@ -98,6 +98,7 @@ export default function App() {
           memories: remoteState.memories || prev.memories,
           loveLetters: remoteState.loveLetters || prev.loveLetters,
           dailyQuestion: remoteState.dailyQuestion ? { ...prev.dailyQuestion, ...remoteState.dailyQuestion } : prev.dailyQuestion,
+          bucketList: remoteState.bucketList || prev.bucketList,
         }));
       }
     });
@@ -349,6 +350,63 @@ export default function App() {
     showToast('💖 Your answer saved! Partner unlocked!');
   };
 
+  // 11. Couple Bucket List Item Toggle & Add (Love32 Pro Feature)
+  const handleToggleBucketItem = (itemId) => {
+    let nextState;
+    setState((prev) => {
+      const updatedList = (prev.bucketList || []).map((item) => {
+        if (item.id === itemId) {
+          const nextVal = !item.completed;
+          if (nextVal) {
+            soundManager.playSuccess();
+            try {
+              confetti({ particleCount: 70, spread: 80 });
+            } catch (e) {}
+          }
+          return {
+            ...item,
+            completed: nextVal,
+            completedBy: nextVal ? (currentUserId === 'partnerA' ? prev.partnerA.name : prev.partnerB.name) : undefined,
+          };
+        }
+        return item;
+      });
+      nextState = { ...prev, bucketList: updatedList };
+      saveState(nextState);
+      broadcastUpdate('STATE_UPDATE', nextState);
+      return nextState;
+    });
+
+    if (nextState) {
+      firebaseSync.updateState(nextState);
+    }
+  };
+
+  const handleAddBucketItem = (title) => {
+    if (!title || !title.trim()) return;
+    const newItem = {
+      id: Date.now(),
+      title: title.trim(),
+      completed: false,
+    };
+    let nextState;
+    setState((prev) => {
+      nextState = {
+        ...prev,
+        bucketList: [...(prev.bucketList || []), newItem],
+      };
+      saveState(nextState);
+      broadcastUpdate('STATE_UPDATE', nextState);
+      return nextState;
+    });
+
+    if (nextState) {
+      firebaseSync.updateState(nextState);
+    }
+    soundManager.playKissPop();
+    showToast('✨ Added new dream to Couple Bucket List!');
+  };
+
   // If not logged in or paired yet, show the Login & Partner Code Onboarding Screen
   if (!session) {
     return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
@@ -395,6 +453,8 @@ export default function App() {
               onUpdateMyStatus={handleUpdateMyStatus}
               onUpdateDistance={handleUpdateDistance}
               onUpdateSpeed={handleUpdateSpeed}
+              onToggleBucketItem={handleToggleBucketItem}
+              onAddBucketItem={handleAddBucketItem}
             />
           )}
 

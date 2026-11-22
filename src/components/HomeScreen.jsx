@@ -19,7 +19,12 @@ import {
   Bike,
   Activity,
   Flame,
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle2,
+  Circle,
+  Plus,
+  ListTodo,
+  Crosshair
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 
@@ -33,6 +38,8 @@ export default function HomeScreen({
   onUpdateMyStatus,
   onUpdateDistance,
   onUpdateSpeed,
+  onToggleBucketItem,
+  onAddBucketItem,
 }) {
   const currentUser = currentUserId === 'partnerA' ? state.partnerA : state.partnerB;
   const partnerUser = currentUserId === 'partnerA' ? state.partnerB : state.partnerA;
@@ -70,6 +77,40 @@ export default function HomeScreen({
 
   // Speed controls for current user
   const [customSpeed, setCustomSpeed] = useState(currentUser.speedKmH || 0);
+  const [isLocating, setIsLocating] = useState(false);
+  const [newBucketDream, setNewBucketDream] = useState('');
+
+  const handleGetRealGPS = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      alert('Geolocation is not supported by your browser/device.');
+      return;
+    }
+    setIsLocating(true);
+    soundManager.playKissPop();
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsLocating(false);
+        const lat = pos.coords.latitude.toFixed(3);
+        const lng = pos.coords.longitude.toFixed(3);
+        const speed = pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0;
+        soundManager.playSuccess();
+        onUpdateSpeed(speed, speed > 10 ? 'In Vehicle 🚗' : speed > 2 ? 'Walking 🚶' : 'Resting 🛋️');
+        alert(`📍 Real GPS Located!\nCoordinates: ${lat}, ${lng}\nLive Motion: ${speed} km/h`);
+      },
+      (err) => {
+        setIsLocating(false);
+        alert('Could not retrieve GPS coordinates. Please allow location access in your browser settings.');
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+
+  const handleAddBucketSubmit = (e) => {
+    e.preventDefault();
+    if (!newBucketDream.trim()) return;
+    onAddBucketItem && onAddBucketItem(newBucketDream.trim());
+    setNewBucketDream('');
+  };
 
   useEffect(() => {
     setCustomSpeed(currentUser.speedKmH || 0);
@@ -172,7 +213,16 @@ export default function HomeScreen({
             <NavIcon size={16} className="text-rose-400 animate-spin" style={{ animationDuration: '8s' }} />
             <h3 className="text-sm font-bold text-white tracking-wide">Live Distance Radar</h3>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={handleGetRealGPS}
+              disabled={isLocating}
+              className="text-[10px] font-bold px-2 py-1 rounded-lg bg-sky-500/20 border border-sky-500/40 text-sky-300 hover:bg-sky-500/30 flex items-center gap-1 transition"
+              title="Detect real device GPS coordinates"
+            >
+              <Crosshair size={11} className={isLocating ? 'animate-spin' : ''} />
+              <span>{isLocating ? 'Locating...' : 'Real GPS'}</span>
+            </button>
             <select
               value={state.distanceKm}
               onChange={(e) => onUpdateDistance(parseFloat(e.target.value))}
@@ -503,6 +553,85 @@ export default function HomeScreen({
             <span className="text-[10px] text-slate-400">Screen Flash</span>
           </button>
         </div>
+      </div>
+
+      {/* 5. COUPLE SHARED BUCKET LIST & DREAMS (LOVE32 PRO FEATURE) */}
+      <div className="rounded-3xl p-5 bg-gradient-to-br from-slate-900/90 via-slate-950 to-purple-950/30 border border-purple-500/20 shadow-xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400">
+              <ListTodo size={17} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white tracking-wide">Couple Bucket List & Dreams</h3>
+              <p className="text-[10px] text-purple-300">
+                {(state.bucketList || []).filter((b) => b.completed).length} of {(state.bucketList || []).length} adventures completed!
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+            {Math.round((((state.bucketList || []).filter((b) => b.completed).length) / Math.max(1, (state.bucketList || []).length)) * 100)}%
+          </span>
+        </div>
+
+        {/* Progress bar */}
+        <div className="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-800">
+          <div
+            className="bg-gradient-to-r from-purple-500 via-pink-500 to-rose-400 h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${Math.round((((state.bucketList || []).filter((b) => b.completed).length) / Math.max(1, (state.bucketList || []).length)) * 100)}%`,
+            }}
+          />
+        </div>
+
+        {/* Bucket List Items */}
+        <div className="space-y-2">
+          {(state.bucketList || []).map((item) => (
+            <div
+              key={item.id}
+              onClick={() => onToggleBucketItem && onToggleBucketItem(item.id)}
+              className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                item.completed
+                  ? 'bg-purple-950/20 border-purple-500/40 text-slate-400'
+                  : 'bg-slate-950/60 border-slate-800 text-slate-200 hover:border-purple-500/40 hover:bg-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                {item.completed ? (
+                  <CheckCircle2 size={18} className="text-emerald-400 shrink-0" />
+                ) : (
+                  <Circle size={18} className="text-slate-600 shrink-0 hover:text-purple-400" />
+                )}
+                <span className={`text-xs font-medium truncate ${item.completed ? 'line-through text-slate-500' : ''}`}>
+                  {item.title}
+                </span>
+              </div>
+              {item.completed && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold shrink-0">
+                  Done ✨
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Add new bucket dream form */}
+        <form onSubmit={handleAddBucketSubmit} className="flex gap-2 pt-1">
+          <input
+            type="text"
+            value={newBucketDream}
+            onChange={(e) => setNewBucketDream(e.target.value)}
+            placeholder="Add a new dream goal together..."
+            className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+          />
+          <button
+            type="submit"
+            className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center gap-1 shadow-md shadow-purple-600/30 transition active:scale-95"
+          >
+            <Plus size={14} />
+            <span>Add</span>
+          </button>
+        </form>
       </div>
 
       {/* Status Edit Modal */}

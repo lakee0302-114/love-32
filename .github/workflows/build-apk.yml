@@ -72,9 +72,17 @@ jobs:
       - name: Create GitHub Release with Direct Download APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.1
-          name: "Love32 Ultra Android APK (Firebase Realtime Connected)"
-          body: "🚀 Official Android APK release for Love32 Ultra. Connected with Google Firebase Realtime Database (`love-32-78b8a`), live GPS speed tracking, and full Pro features."
+          tag_name: v1.0.2
+          name: "Love32 Ultra Android APK v1.0.2 (Google Maps & Live Telemetry)"
+          body: |
+            🚀 Official Android APK Release v1.0.2 for Love32 Ultra!
+            
+            ### ✨ What's New in v1.0.2:
+            - 🗺️ **Full-Screen Google Maps**: Native map tiles centered on Galle with live GPS coordinates and satellite layers.
+            - 🚗 **Live Vehicle Speed Telemetry**: Pin dynamically displays speed when moving in a vehicle (`🚗 45 km/h • In Vehicle >`).
+            - ⚙️ **100% Interactive Settings Menu**: Sub-drawers for My Profile, Partner Profile, Email 2FA, Notification settings, and Password Update.
+            - ☁️ **Permanent Firebase RTDB Sync**: Dual-channel real-time cloud synchronization (`love-32-78b8a`).
+            - ✉️ **Resend Email OTP Gateway**: Direct 6-digit email OTPs delivered to inbox.
           files: Love32-Ultra.apk
           make_latest: true
         env:

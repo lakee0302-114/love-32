@@ -203,7 +203,7 @@ export default function SettingsModal({
     setUpdateStatus(null);
     setTimeout(() => {
       setIsCheckingUpdate(false);
-      setUpdateStatus('🎉 You are using the latest Love32 Ultra v3.24.0!');
+      setUpdateStatus('🎉 You are using the latest Love32 Ultra v1.0.2 (Build 32403)!');
       showToast('🎉 Already on the newest version!');
     }, 1200);
   };
@@ -1001,7 +1001,7 @@ export default function SettingsModal({
                     Love32 Ultra
                   </h3>
                   <p className="text-xs text-rose-500 font-bold mt-0.5">
-                    Version 3.24.0 (Build 32402)
+                    Version 3.24.1 (Build 32403 - APK v1.0.2)
                   </p>
                 </div>
 
@@ -1422,7 +1422,7 @@ export default function SettingsModal({
                     <span>APP version</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-slate-400">
-                    <span className="text-[11px] font-mono font-bold text-slate-500">3.24.0 (Ultra)</span>
+                    <span className="text-[11px] font-mono font-bold text-slate-500">v1.0.2 (Ultra)</span>
                     <ChevronRight size={16} />
                   </div>
                 </div>

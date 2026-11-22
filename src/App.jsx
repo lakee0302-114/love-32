@@ -7,6 +7,11 @@ import MissYouHub from './components/MissYouHub';
 import MemoriesTimeline from './components/MemoriesTimeline';
 import CoupleGames from './components/CoupleGames';
 import WidgetStudio from './components/WidgetStudio';
+import ProfileScreen from './components/ProfileScreen';
+import SettingsModal from './components/SettingsModal';
+import WhatPremiumIncludesModal from './components/WhatPremiumIncludesModal';
+import AboutPhoneStatusModal from './components/AboutPhoneStatusModal';
+import AnniversaryModal from './components/AnniversaryModal';
 import ScreenBombOverlay from './components/ScreenBombOverlay';
 import AuthScreen from './components/AuthScreen';
 
@@ -42,6 +47,47 @@ export default function App() {
   const [activeScreenBomb, setActiveScreenBomb] = useState(null);
   const [quickToast, setQuickToast] = useState(null);
   const [roomCode, setRoomCode] = useState(() => session?.partnerCode || getSavedRoomCode());
+
+  // Theme & Appearance Settings (Light Mode / Dark Mode)
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('love32_theme') || 'dark';
+    } catch (e) {
+      return 'dark';
+    }
+  });
+
+  // Modal Dialog States
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showPhoneStatusModal, setShowPhoneStatusModal] = useState(false);
+  const [showAnniversaryModal, setShowAnniversaryModal] = useState(false);
+
+  const handleToggleTheme = (newTheme) => {
+    const target = newTheme || (theme === 'dark' ? 'light' : 'dark');
+    setTheme(target);
+    try {
+      localStorage.setItem('love32_theme', target);
+    } catch (e) {}
+    showToast(`Switched to ${target === 'dark' ? 'Dark Mode 🌙' : 'Light Mode ☀️'}`);
+  };
+
+  const handleSaveAnniversary = (dateStr) => {
+    let nextState;
+    setState((prev) => {
+      nextState = {
+        ...prev,
+        relationshipStartDate: dateStr,
+      };
+      saveState(nextState);
+      broadcastUpdate('STATE_UPDATE', nextState);
+      return nextState;
+    });
+    if (nextState) {
+      cloudSync.updateState(nextState);
+    }
+    showToast(`Anniversary set to ${dateStr} 💖`);
+  };
 
   // Handle Login & Pairing Completion
   const handleLoginSuccess = (authData) => {
@@ -564,17 +610,23 @@ export default function App() {
   const partnerUser = currentUserId === 'partnerA' ? state.partnerB : state.partnerA;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-start relative selection:bg-rose-500 selection:text-white">
+    <div
+      className={`min-h-screen ${
+        theme === 'light'
+          ? 'theme-light bg-slate-100 text-slate-900'
+          : 'theme-dark bg-slate-950 text-slate-100'
+      } flex flex-col items-center justify-start relative selection:bg-rose-500 selection:text-white transition-colors duration-300`}
+    >
       {/* Background ambient lighting */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-rose-600/15 rounded-full blur-[120px]" />
-        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-600/15 rounded-full blur-[120px]" />
-        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-pink-600/10 rounded-full blur-[120px]" />
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-rose-500/15 rounded-full blur-[120px]" />
+        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-500/15 rounded-full blur-[120px]" />
+        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-pink-500/10 rounded-full blur-[120px]" />
       </div>
 
       {/* Main Container - Mobile First Frame */}
-      <div className="relative z-10 w-full max-w-md min-h-screen flex flex-col border-x border-slate-900 bg-slate-950/90 shadow-2xl">
-        {/* Header - Firebase Live button removed as requested */}
+      <div className="relative z-10 w-full max-w-md min-h-screen flex flex-col border-x border-slate-200 dark:border-slate-900 bg-white/95 dark:bg-slate-950/90 shadow-2xl">
+        {/* Header with Settings Button */}
         <Header
           state={state}
           currentUserId={currentUserId}
@@ -583,6 +635,7 @@ export default function App() {
           onToggleMute={handleToggleMute}
           partnerCode={roomCode}
           onLogout={handleLogout}
+          onOpenSettings={() => setShowSettingsModal(true)}
         />
 
         {/* Dynamic View Content */}
@@ -654,11 +707,69 @@ export default function App() {
               onSendQuickKiss={handleSendQuickKiss}
             />
           )}
+
+          {/* Profile & Couple Summary View (Matches Image 4) */}
+          {activeTab === 'profile' && (
+            <ProfileScreen
+              state={state}
+              currentUserId={currentUserId}
+              onOpenSettings={() => setShowSettingsModal(true)}
+              onOpenPremium={() => setShowPremiumModal(true)}
+              onOpenAnniversary={() => setShowAnniversaryModal(true)}
+              partnerCode={roomCode}
+            />
+          )}
         </main>
 
         {/* Bottom Tab Bar */}
         <Navigation activeTab={activeTab} onSelectTab={setActiveTab} />
       </div>
+
+      {/* Settings Drawer / Modal (Dark Mode / Light Mode Selector - Matches Image 3) */}
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        currentUser={currentUser}
+        partnerUser={partnerUser}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+        onOpenAnniversary={() => {
+          setShowSettingsModal(false);
+          setShowAnniversaryModal(true);
+        }}
+        onOpenPhoneStatus={() => {
+          setShowSettingsModal(false);
+          setShowPhoneStatusModal(true);
+        }}
+        onOpenPremium={() => {
+          setShowSettingsModal(false);
+          setShowPremiumModal(true);
+        }}
+        onLogout={handleLogout}
+        partnerCode={roomCode}
+      />
+
+      {/* What Premium Includes Modal (Matches Image 1) */}
+      <WhatPremiumIncludesModal
+        isOpen={showPremiumModal}
+        onClose={() => setShowPremiumModal(false)}
+      />
+
+      {/* About Phone Status Modal (Matches Image 2) */}
+      <AboutPhoneStatusModal
+        isOpen={showPhoneStatusModal}
+        onClose={() => setShowPhoneStatusModal(false)}
+      />
+
+      {/* Anniversary Date Picker Modal (Matches Image 5) */}
+      <AnniversaryModal
+        isOpen={showAnniversaryModal}
+        onClose={() => setShowAnniversaryModal(false)}
+        currentStartDate={state.relationshipStartDate}
+        onSaveAnniversary={handleSaveAnniversary}
+        partnerA={state.partnerA}
+        partnerB={state.partnerB}
+      />
 
       {/* Full-screen Romantic Screen Bomb Alert */}
       {activeScreenBomb && (
@@ -670,7 +781,7 @@ export default function App() {
 
       {/* Floating Action Toast Notification */}
       {quickToast && (
-        <div className="fixed top-14 z-50 px-4 py-2 rounded-2xl bg-slate-900/95 border border-rose-500/40 text-white font-medium text-xs shadow-2xl backdrop-blur-md animate-bounce-subtle flex items-center gap-2">
+        <div className="fixed top-14 z-50 px-4 py-2 rounded-2xl bg-slate-900/95 dark:bg-slate-900/95 text-white font-medium text-xs shadow-2xl backdrop-blur-md animate-bounce-subtle flex items-center gap-2 border border-rose-500/40">
           <span>{quickToast}</span>
         </div>
       )}

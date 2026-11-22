@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, Volume2, VolumeX, Sparkles, RefreshCw, KeyRound, Copy, Check, LogOut } from 'lucide-react';
+import { Heart, Volume2, VolumeX, Sparkles, RefreshCw, KeyRound, Copy, Check, LogOut, Settings as SettingsIcon } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 
 export default function Header({
@@ -10,6 +10,7 @@ export default function Header({
   onToggleMute,
   partnerCode,
   onLogout,
+  onOpenSettings,
 }) {
   const currentUser = currentUserId === 'partnerA' ? state.partnerA : state.partnerB;
   const partnerUser = currentUserId === 'partnerA' ? state.partnerB : state.partnerA;
@@ -76,20 +77,34 @@ export default function Header({
               <span className="font-bold text-white">{currentUser.name}</span>
             </div>
 
+            {/* Settings Button (Theme & Preferences) */}
+            {onOpenSettings && (
+              <button
+                onClick={() => {
+                  soundManager.playKissPop();
+                  onOpenSettings();
+                }}
+                className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white transition shadow-sm"
+                title="Settings & Appearance"
+              >
+                <SettingsIcon size={15} />
+              </button>
+            )}
+
             {/* Sound Toggle */}
             <button
               onClick={onToggleMute}
-              className="p-2 rounded-xl bg-slate-800/60 hover:bg-slate-800 text-slate-300 hover:text-white transition"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white transition shadow-sm"
               title={isMuted ? 'Unmute' : 'Mute'}
             >
-              {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} className="text-rose-400" />}
+              {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} className="text-rose-500 dark:text-rose-400" />}
             </button>
 
             {/* Logout button */}
             {onLogout && (
               <button
                 onClick={onLogout}
-                className="p-2 rounded-xl bg-slate-800/60 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 transition"
+                className="p-2 rounded-xl bg-slate-100 hover:bg-rose-100 dark:bg-slate-800/60 dark:hover:bg-rose-950/60 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 transition shadow-sm"
                 title="Log out / Switch Code"
               >
                 <LogOut size={15} />

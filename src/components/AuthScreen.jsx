@@ -30,6 +30,7 @@ import {
   updatePasswordInFirebase,
 } from '../utils/firebase';
 import { cloudSync } from '../utils/cloudSync';
+import { sendOtpToGmail } from '../utils/emailService';
 
 const ACCOUNTS_DB_KEY = 'love32_registered_accounts_db';
 
@@ -82,7 +83,6 @@ export default function AuthScreen({ onLoginSuccess }) {
   // 🔐 Login Email OTP Verification States
   const [loginOtp, setLoginOtp] = useState('');
   const [loginOtpInput, setLoginOtpInput] = useState('');
-  const [activeOtpNotification, setActiveOtpNotification] = useState(null);
   const [resendCountdown, setResendCountdown] = useState(0);
 
   // 🔑 Forgot Password States
@@ -176,16 +176,12 @@ export default function AuthScreen({ onLoginSuccess }) {
 
       setIsSubmitting(true);
       soundManager.playKissPop();
+      sendOtpToGmail({ toEmail: cleanEmail, otpCode: generatedCode, purpose: 'Login' });
 
       setTimeout(() => {
         setIsSubmitting(false);
         setAuthMode('login_otp');
         setResendCountdown(30);
-        setActiveOtpNotification({
-          email: cleanEmail,
-          code: generatedCode,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        });
         soundManager.playChime();
       }, 500);
     } else {
@@ -234,16 +230,12 @@ export default function AuthScreen({ onLoginSuccess }) {
       try {
         confetti({ particleCount: 70, spread: 70 });
       } catch (err) {}
+      sendOtpToGmail({ toEmail: cleanEmail, otpCode: generatedCode, purpose: 'Registration' });
 
       setTimeout(() => {
         setIsSubmitting(false);
         setAuthMode('login_otp');
         setResendCountdown(30);
-        setActiveOtpNotification({
-          email: cleanEmail,
-          code: generatedCode,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        });
         soundManager.playChime();
       }, 600);
     }
@@ -275,7 +267,6 @@ export default function AuthScreen({ onLoginSuccess }) {
 
     setTimeout(() => {
       setIsSubmitting(false);
-      setActiveOtpNotification(null);
       setStep(2);
       soundManager.playChime();
     }, 700);
@@ -288,12 +279,8 @@ export default function AuthScreen({ onLoginSuccess }) {
     setLoginOtp(newCode);
     setResendCountdown(30);
     setErrorMsg('');
-    setActiveOtpNotification({
-      email: email.toLowerCase().trim(),
-      code: newCode,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    });
     soundManager.playKissPop();
+    sendOtpToGmail({ toEmail: email.toLowerCase().trim(), otpCode: newCode, purpose: 'Login' });
   };
 
   // 3. Handle Forgot Password - Step 1: Send Reset OTP
@@ -330,11 +317,7 @@ export default function AuthScreen({ onLoginSuccess }) {
     setForgotOtpInput('');
     setForgotStep(2);
     soundManager.playKissPop();
-    setActiveOtpNotification({
-      email: cleanEmail,
-      code: newResetCode,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    });
+    sendOtpToGmail({ toEmail: cleanEmail, otpCode: newResetCode, purpose: 'Password Reset' });
   };
 
   // Handle Forgot Password - Step 2: Verify OTP and Save New Password
@@ -377,7 +360,6 @@ export default function AuthScreen({ onLoginSuccess }) {
     } catch (e) {}
 
     setSuccessMsg('✅ Password reset successfully! Please sign in with your new password.');
-    setActiveOtpNotification(null);
 
     // Return to sign in view with email prefilled
     setTimeout(() => {
@@ -474,44 +456,6 @@ export default function AuthScreen({ onLoginSuccess }) {
       {/* Background ambient lighting */}
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-rose-600/20 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-purple-600/20 rounded-full blur-[140px] pointer-events-none" />
-
-      {/* Simulated Live Email Inbox OTP Notification Banner */}
-      {activeOtpNotification && (
-        <div className="fixed top-4 left-4 right-4 max-w-sm mx-auto z-50 animate-bounce-subtle">
-          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 border-2 border-pink-500 shadow-2xl text-xs space-y-1.5">
-            <div className="flex items-center justify-between text-pink-300 font-bold">
-              <span className="flex items-center gap-1.5">
-                <Mail size={14} className="text-pink-400" />
-                <span>New Email: Love32 Security</span>
-              </span>
-              <span className="text-[10px] text-slate-400 font-mono">{activeOtpNotification.time}</span>
-            </div>
-            <p className="text-slate-300 text-[11px] leading-tight">
-              To: <span className="text-white font-mono">{activeOtpNotification.email}</span>
-            </p>
-            <div className="p-2 rounded-xl bg-slate-950 border border-pink-500/40 flex items-center justify-between">
-              <div>
-                <div className="text-[10px] text-slate-400 uppercase font-semibold">Your Verification OTP:</div>
-                <div className="text-xl font-black font-mono tracking-widest text-pink-400">
-                  {activeOtpNotification.code}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (authMode === 'login_otp') setLoginOtpInput(activeOtpNotification.code);
-                  if (authMode === 'forgot_password') setForgotOtpInput(activeOtpNotification.code);
-                  soundManager.playKissPop();
-                }}
-                className="px-2.5 py-1 rounded-lg bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-[10px] font-bold border border-pink-500/40"
-              >
-                Auto Fill
-              </button>
-            </div>
-            <p className="text-[9px] text-slate-400">Valid for 5 minutes. Never share this code with anyone.</p>
-          </div>
-        </div>
-      )}
 
       <div className="relative z-10 max-w-sm w-full bg-slate-900/90 border border-rose-500/30 rounded-3xl p-6 shadow-2xl backdrop-blur-xl">
         {/* Top Logo */}
@@ -764,6 +708,10 @@ export default function AuthScreen({ onLoginSuccess }) {
                   placeholder="• • • • • •"
                   className="w-full bg-slate-950 border border-slate-700 rounded-2xl py-3 text-center text-white font-mono text-2xl tracking-[0.4em] font-extrabold focus:outline-none focus:border-pink-500 shadow-inner"
                 />
+                <p className="text-[10px] text-slate-400 text-center mt-1.5 flex items-center justify-center gap-1">
+                  <Mail size={11} className="text-pink-400" />
+                  <span>Check your Gmail Inbox or Spam folder for the code</span>
+                </p>
               </div>
 
               {/* ERROR ALERT */}
@@ -791,7 +739,6 @@ export default function AuthScreen({ onLoginSuccess }) {
                   onClick={() => {
                     setAuthMode('login');
                     setErrorMsg('');
-                    setActiveOtpNotification(null);
                   }}
                   className="text-slate-400 hover:text-white flex items-center gap-1"
                 >
@@ -874,7 +821,6 @@ export default function AuthScreen({ onLoginSuccess }) {
                     onClick={() => {
                       setAuthMode('login');
                       setErrorMsg('');
-                      setActiveOtpNotification(null);
                     }}
                     className="text-xs text-slate-400 hover:text-white underline flex items-center justify-center gap-1 mx-auto"
                   >

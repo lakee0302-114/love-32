@@ -24,6 +24,12 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../utils/audio';
+import {
+  saveAccountToFirebase,
+  fetchAccountFromFirebase,
+  updatePasswordInFirebase,
+} from '../utils/firebase';
+import { cloudSync } from '../utils/cloudSync';
 
 const ACCOUNTS_DB_KEY = 'love32_registered_accounts_db';
 
@@ -98,6 +104,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   // Check URL query parameters for invite code (?code=LOVE-XXXX or ?room=LOVE-XXXX)
   useEffect(() => {
     try {
+      cloudSync.connect();
       const params = new URLSearchParams(window.location.search);
       const codeFromUrl = params.get('code') || params.get('room');
       if (codeFromUrl) {
@@ -113,7 +120,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
   // 1. Handle Primary Auth Form Submit (Login / Sign Up)
-  const handleAuthSubmit = (e) => {
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -137,8 +144,19 @@ export default function AuthScreen({ onLoginSuccess }) {
     const db = getAccountsDB();
 
     if (authMode === 'login') {
-      // SIGN IN MODE: Check credentials first
-      const existingUser = db[cleanEmail];
+      // SIGN IN MODE: Check credentials (Local DB first, then Cloud Firebase across devices)
+      let existingUser = db[cleanEmail];
+      if (!existingUser) {
+        setIsSubmitting(true);
+        try {
+          existingUser = await fetchAccountFromFirebase(cleanEmail);
+          if (existingUser) {
+            saveAccountToDB(existingUser);
+          }
+        } catch (err) {}
+        setIsSubmitting(false);
+      }
+
       if (!existingUser) {
         setErrorMsg('❌ No account found with this email! Please click "Create Account" first to register.');
         return;
@@ -153,8 +171,8 @@ export default function AuthScreen({ onLoginSuccess }) {
       const generatedCode = generateOTP();
       setLoginOtp(generatedCode);
       setLoginOtpInput('');
-      setName(existingUser.name);
-      setAvatar(existingUser.avatar);
+      setName(existingUser.name || 'Partner');
+      setAvatar(existingUser.avatar || '🤴');
 
       setIsSubmitting(true);
       soundManager.playKissPop();
@@ -182,12 +200,19 @@ export default function AuthScreen({ onLoginSuccess }) {
         return;
       }
 
-      if (db[cleanEmail]) {
+      let existingInCloud = null;
+      if (!db[cleanEmail]) {
+        try {
+          existingInCloud = await fetchAccountFromFirebase(cleanEmail);
+        } catch (err) {}
+      }
+
+      if (db[cleanEmail] || existingInCloud) {
         setErrorMsg('⚠️ This email is already registered! Please switch to the "Sign In" tab.');
         return;
       }
 
-      // Save valid new account
+      // Save valid new account across Local, Cloud Firebase, and Realtime WebSockets
       const newAccount = {
         email: cleanEmail,
         password: cleanPass,
@@ -196,6 +221,8 @@ export default function AuthScreen({ onLoginSuccess }) {
         createdAt: Date.now(),
       };
       saveAccountToDB(newAccount);
+      saveAccountToFirebase(newAccount);
+      cloudSync.broadcastAccount(newAccount);
 
       // Trigger OTP verification for newly registered account as well
       const generatedCode = generateOTP();
@@ -270,7 +297,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   };
 
   // 3. Handle Forgot Password - Step 1: Send Reset OTP
-  const handleForgotSendOtp = (e) => {
+  const handleForgotSendOtp = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -283,7 +310,17 @@ export default function AuthScreen({ onLoginSuccess }) {
       return;
     }
 
-    if (!db[cleanEmail]) {
+    let existing = db[cleanEmail];
+    if (!existing) {
+      try {
+        existing = await fetchAccountFromFirebase(cleanEmail);
+        if (existing) {
+          saveAccountToDB(existing);
+        }
+      } catch (err) {}
+    }
+
+    if (!existing) {
       setErrorMsg('❌ No account found with this email address.');
       return;
     }
@@ -301,7 +338,7 @@ export default function AuthScreen({ onLoginSuccess }) {
   };
 
   // Handle Forgot Password - Step 2: Verify OTP and Save New Password
-  const handleForgotResetPassword = (e) => {
+  const handleForgotResetPassword = async (e) => {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
@@ -322,7 +359,7 @@ export default function AuthScreen({ onLoginSuccess }) {
       return;
     }
 
-    // Save updated password in Database
+    // Save updated password in Database across Local, Firebase and WebSockets
     const cleanEmail = forgotEmail.toLowerCase().trim();
     const db = getAccountsDB();
     if (db[cleanEmail]) {
@@ -331,6 +368,8 @@ export default function AuthScreen({ onLoginSuccess }) {
         localStorage.setItem(ACCOUNTS_DB_KEY, JSON.stringify(db));
       } catch (err) {}
     }
+    await updatePasswordInFirebase(cleanEmail, cleanPass);
+    cloudSync.broadcastAccount({ email: cleanEmail, password: cleanPass });
 
     soundManager.playSuccess();
     try {

@@ -1,6 +1,6 @@
 // Official Google Firebase Realtime Database Integration for Love8 Ultra / Love32
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getDatabase, ref, set, update, onValue, off } from 'firebase/database';
+import { getDatabase, ref, set, update, onValue, off, get } from 'firebase/database';
 
 const FIREBASE_CONFIG_STORAGE_KEY = 'love8_firebase_official_config';
 const FIREBASE_ROOM_STORAGE_KEY = 'love8_firebase_room_code';
@@ -66,6 +66,60 @@ export const initFirebase = (customConfig) => {
   } catch (err) {
     console.warn('[Firebase] Init notice:', err.message);
     return null;
+  }
+};
+
+// Cloud Account Management across multiple devices
+export const encodeEmailKey = (email) => {
+  return (email || '').toLowerCase().trim().replace(/[\.\#\$\[\]]/g, '_');
+};
+
+export const saveAccountToFirebase = async (account) => {
+  if (!account || !account.email) return;
+  const key = encodeEmailKey(account.email);
+  if (!firebaseDb) initFirebase();
+  if (!firebaseDb) return;
+  try {
+    const accountRef = ref(firebaseDb, `accounts/${key}`);
+    await set(accountRef, {
+      email: account.email.toLowerCase().trim(),
+      password: account.password,
+      name: account.name || 'Partner',
+      avatar: account.avatar || '🤴',
+      updatedAt: Date.now(),
+    });
+  } catch (err) {
+    console.warn('[Firebase] Save account notice:', err.message);
+  }
+};
+
+export const fetchAccountFromFirebase = async (email) => {
+  if (!email) return null;
+  const key = encodeEmailKey(email);
+  if (!firebaseDb) initFirebase();
+  if (!firebaseDb) return null;
+  try {
+    const accountRef = ref(firebaseDb, `accounts/${key}`);
+    const snapshot = await get(accountRef);
+    if (snapshot.exists()) {
+      return snapshot.val();
+    }
+  } catch (err) {
+    console.warn('[Firebase] Fetch account notice:', err.message);
+  }
+  return null;
+};
+
+export const updatePasswordInFirebase = async (email, newPassword) => {
+  if (!email || !newPassword) return;
+  const key = encodeEmailKey(email);
+  if (!firebaseDb) initFirebase();
+  if (!firebaseDb) return;
+  try {
+    const passRef = ref(firebaseDb, `accounts/${key}/password`);
+    await set(passRef, newPassword);
+  } catch (err) {
+    console.warn('[Firebase] Update password notice:', err.message);
   }
 };
 

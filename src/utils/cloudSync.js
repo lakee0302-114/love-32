@@ -31,6 +31,7 @@ class CloudSyncService {
       this.client.on('connect', () => {
         console.log('[CloudSync] Connected to Global Realtime Broker');
         this.isConnected = true;
+        this.client.subscribe('love32/shared_accounts', { qos: 1 });
         if (this.currentRoom) {
           this.subscribeRoom(this.currentRoom);
         }
@@ -39,7 +40,17 @@ class CloudSyncService {
       this.client.on('message', (topic, payload) => {
         try {
           const data = JSON.parse(payload.toString());
-          if (topic.endsWith('/state')) {
+          if (topic === 'love32/shared_accounts') {
+            if (data && data.email) {
+              try {
+                const ACCOUNTS_DB_KEY = 'love32_registered_accounts_db';
+                const raw = localStorage.getItem(ACCOUNTS_DB_KEY);
+                const db = raw ? JSON.parse(raw) : {};
+                db[data.email.toLowerCase().trim()] = data;
+                localStorage.setItem(ACCOUNTS_DB_KEY, JSON.stringify(db));
+              } catch (e) {}
+            }
+          } else if (topic.endsWith('/state')) {
             this.stateListeners.forEach((fn) => fn(data));
           } else if (topic.endsWith('/events')) {
             this.eventListeners.forEach((fn) => fn(data));
@@ -109,6 +120,18 @@ class CloudSyncService {
       this.client.publish(stateTopic, JSON.stringify(newState), { qos: 1, retain: true });
     } catch (e) {
       console.warn('[CloudSync] Publish state error:', e);
+    }
+  }
+
+  broadcastAccount(account) {
+    if (!account || !account.email) return;
+    if (!this.client || !this.client.connected) {
+      this.connect();
+    }
+    try {
+      this.client.publish('love32/shared_accounts', JSON.stringify(account), { qos: 1, retain: true });
+    } catch (e) {
+      console.warn('[CloudSync] Broadcast account error:', e);
     }
   }
 

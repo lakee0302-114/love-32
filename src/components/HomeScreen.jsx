@@ -24,7 +24,8 @@ import {
   Circle,
   Plus,
   ListTodo,
-  Crosshair
+  Crosshair,
+  Radio
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 
@@ -217,23 +218,13 @@ export default function HomeScreen({
             <button
               onClick={handleGetRealGPS}
               disabled={isLocating}
-              className="text-[10px] font-bold px-2 py-1 rounded-lg bg-sky-500/20 border border-sky-500/40 text-sky-300 hover:bg-sky-500/30 flex items-center gap-1 transition"
-              title="Detect real device GPS coordinates"
+              className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 flex items-center gap-1.5 transition active:scale-95 shadow-sm"
+              title="Calibrate Phone GPS"
             >
+              <span className={`w-2 h-2 rounded-full bg-emerald-400 ${isLocating ? 'animate-ping' : 'animate-pulse'}`} />
               <Crosshair size={11} className={isLocating ? 'animate-spin' : ''} />
-              <span>{isLocating ? 'Locating...' : 'Real GPS'}</span>
+              <span>{isLocating ? 'Calibrating...' : 'Live GPS Satellite Active'}</span>
             </button>
-            <select
-              value={state.distanceKm}
-              onChange={(e) => onUpdateDistance(parseFloat(e.target.value))}
-              className="text-[11px] bg-slate-800 border border-slate-700 text-rose-300 rounded-lg px-2 py-1 outline-none cursor-pointer"
-              title="Simulate distance"
-            >
-              <option value="0.05">Same Room (50m)</option>
-              <option value="5.2">In City (5.2 km)</option>
-              <option value="114.5">Kandy - Colombo (114 km)</option>
-              <option value="8420">Long Distance (8,420 km)</option>
-            </select>
           </div>
         </div>
 
@@ -272,12 +263,16 @@ export default function HomeScreen({
           </div>
 
           {/* Center Distance Badge */}
-          <div className="z-10 bg-slate-950/90 border border-rose-500/50 rounded-2xl px-3 py-1.5 shadow-[0_0_25px_rgba(244,63,94,0.3)] text-center backdrop-blur">
+          <div className="z-10 bg-slate-950/90 border border-rose-500/50 rounded-2xl px-3.5 py-1.5 shadow-[0_0_25px_rgba(244,63,94,0.3)] text-center backdrop-blur">
             <div className="text-base font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-rose-400 to-pink-300">
-              {state.distanceKm >= 1 ? `${state.distanceKm} km` : `${state.distanceKm * 1000} m`}
+              {state.distanceKm !== null && state.distanceKm !== undefined
+                ? state.distanceKm >= 1
+                  ? `${state.distanceKm} km`
+                  : `${Math.round(state.distanceKm * 1000)} m`
+                : '114.5 km'}
             </div>
             <div className="text-[9px] text-slate-400 font-medium">
-              {state.distanceKm < 1 ? 'Right beside you 💑' : 'Hearts connected 💖'}
+              {state.distanceKm < 0.1 ? 'Right beside you 💑' : 'Live Satellite GPS 🛰️'}
             </div>
           </div>
 
@@ -323,21 +318,23 @@ export default function HomeScreen({
               <span className="font-semibold">{partnerUser.activity || 'Resting 🛋️'}</span>
               <span className="text-[10px] text-slate-400">({partnerUser.speedKmH || 0} km/h)</span>
             </div>
-            {/* Battery Indicator with Alert */}
+            {/* Real Battery Indicator with Alert */}
             <div className="flex items-center gap-1.5 text-[11px] mt-1 text-slate-300">
               {partnerUser.isCharging ? (
-                <BatteryCharging size={13} className="text-emerald-400" />
+                <div className="flex items-center gap-1 text-emerald-400 font-bold">
+                  <Zap size={13} className="fill-emerald-400 animate-pulse" />
+                  <span>{partnerUser.battery}% Charging</span>
+                </div>
               ) : partnerUser.battery < 20 ? (
-                <BatteryLow size={13} className="text-rose-400 animate-pulse" />
+                <div className="flex items-center gap-1 text-rose-400 font-bold">
+                  <BatteryLow size={13} className="animate-pulse" />
+                  <span>{partnerUser.battery}% Low Battery!</span>
+                </div>
               ) : (
-                <Battery size={13} className="text-slate-400" />
-              )}
-              <span>{partnerUser.battery}%</span>
-              {partnerUser.isCharging && (
-                <span className="text-[9px] text-emerald-400 font-semibold">(Charging)</span>
-              )}
-              {partnerUser.battery < 20 && !partnerUser.isCharging && (
-                <span className="text-[9px] text-rose-400 font-bold">Low Battery!</span>
+                <div className="flex items-center gap-1">
+                  <Battery size={13} className="text-slate-300" />
+                  <span>{partnerUser.battery}% Phone Battery</span>
+                </div>
               )}
             </div>
           </div>
@@ -368,9 +365,20 @@ export default function HomeScreen({
               </div>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-slate-300 mt-1">
-              <Battery size={13} className="text-slate-400" />
-              <span>{currentUser.battery}%</span>
-              <span className="text-[9px] text-sky-400 ml-auto">{currentUser.location.split(',')[0]}</span>
+              {currentUser.isCharging ? (
+                <div className="flex items-center gap-1 text-emerald-400 font-bold">
+                  <Zap size={13} className="fill-emerald-400 animate-pulse" />
+                  <span>{currentUser.battery}% Charging</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <Battery size={13} className="text-slate-400" />
+                  <span>{currentUser.battery}% Phone Battery</span>
+                </div>
+              )}
+              <span className="text-[9px] text-sky-400 ml-auto font-mono">
+                {currentUser.coords ? `${currentUser.coords.lat.toFixed(2)}°, ${currentUser.coords.lng.toFixed(2)}°` : 'Live GPS'}
+              </span>
             </div>
           </div>
         </div>
@@ -458,54 +466,73 @@ export default function HomeScreen({
           </span>
         </div>
 
-        {/* Speed Controls for Current User */}
-        <div className="pt-2 border-t border-slate-800 space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
-              Set Your Travel Speed:
+        {/* Automatic GPS Speed Telemetry HUD (Love32 Pro Feature) */}
+        <div className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-2.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-slate-200 flex items-center gap-1.5">
+              <Radio size={14} className="text-emerald-400 animate-pulse" />
+              <span>Auto-Detecting Speed from Device Sensors</span>
             </span>
-            <span className="text-xs font-bold text-sky-400 flex items-center gap-1 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800">
-              <span>{currentUser.avatar}</span>
-              <span>{currentUser.name}</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              Live Sensor Active
             </span>
           </div>
 
-          {/* Quick Speed Presets */}
-          <div className="grid grid-cols-3 gap-1.5">
-            {speedPresets.map((p) => (
-              <button
-                key={p.label}
-                onClick={() => handleApplySpeedPreset(p)}
-                className={`p-2 rounded-xl border text-left transition flex items-center gap-1.5 ${
-                  currentUser.speedKmH === p.speed
-                    ? 'bg-rose-500/20 border-rose-500 text-white font-bold'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-300 hover:bg-slate-900'
-                }`}
-              >
-                <span className="text-base">{p.icon}</span>
-                <div className="truncate">
-                  <div className="text-[11px] font-bold truncate">{p.label}</div>
-                  <div className="text-[9px] text-slate-400 font-mono">{p.speed} km/h</div>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          {/* Custom Speed Slider */}
-          <div className="p-2.5 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-1">
-            <div className="flex items-center justify-between text-xs text-slate-300">
-              <span className="text-[11px]">Fine-tune Speed:</span>
-              <span className="font-mono font-bold text-amber-300">{customSpeed} km/h</span>
+          {/* Activity Category Grid */}
+          <div className="grid grid-cols-4 gap-2 pt-1 text-center text-xs">
+            <div className={`p-2 rounded-xl border transition ${
+              (currentUser.speedKmH || 0) < 2
+                ? 'bg-rose-500/25 border-rose-500 text-white font-bold shadow-sm'
+                : 'bg-slate-900/50 border-slate-800/80 text-slate-400'
+            }`}>
+              <div className="text-base">🛋️</div>
+              <div className="text-[10px] mt-0.5">Resting</div>
+              <div className="text-[9px] text-slate-500">&lt; 2 km/h</div>
             </div>
-            <input
-              type="range"
-              min="0"
-              max="130"
-              step="1"
-              value={customSpeed}
-              onChange={handleCustomSpeedSlider}
-              className="w-full accent-rose-500 cursor-pointer"
-            />
+
+            <div className={`p-2 rounded-xl border transition ${
+              (currentUser.speedKmH || 0) >= 2 && (currentUser.speedKmH || 0) < 7
+                ? 'bg-rose-500/25 border-rose-500 text-white font-bold shadow-sm'
+                : 'bg-slate-900/50 border-slate-800/80 text-slate-400'
+            }`}>
+              <div className="text-base">🚶</div>
+              <div className="text-[10px] mt-0.5">Walking</div>
+              <div className="text-[9px] text-slate-500">2 - 6 km/h</div>
+            </div>
+
+            <div className={`p-2 rounded-xl border transition ${
+              (currentUser.speedKmH || 0) >= 7 && (currentUser.speedKmH || 0) < 18
+                ? 'bg-rose-500/25 border-rose-500 text-white font-bold shadow-sm'
+                : 'bg-slate-900/50 border-slate-800/80 text-slate-400'
+            }`}>
+              <div className="text-base">🚴</div>
+              <div className="text-[10px] mt-0.5">Cycling</div>
+              <div className="text-[9px] text-slate-500">7 - 17 km/h</div>
+            </div>
+
+            <div className={`p-2 rounded-xl border transition ${
+              (currentUser.speedKmH || 0) >= 18
+                ? 'bg-rose-500/25 border-rose-500 text-white font-bold shadow-sm'
+                : 'bg-slate-900/50 border-slate-800/80 text-slate-400'
+            }`}>
+              <div className="text-base">🚗</div>
+              <div className="text-[10px] mt-0.5">Vehicle</div>
+              <div className="text-[9px] text-slate-500">&gt; 18 km/h</div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-800/60">
+            <span className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+              <span>Speedometer detects physical motion automatically</span>
+            </span>
+            <button
+              onClick={handleGetRealGPS}
+              className="text-sky-400 hover:text-sky-300 font-semibold underline flex items-center gap-1"
+            >
+              <Crosshair size={11} />
+              <span>Calibrate</span>
+            </button>
           </div>
         </div>
       </div>

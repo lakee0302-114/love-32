@@ -19,6 +19,7 @@ import {
 } from './utils/storage';
 import { cloudSync } from './utils/cloudSync';
 import { getSavedRoomCode, saveRoomCode } from './utils/firebase';
+import { monitorPhoneBattery, monitorLiveLocationAndSpeed, calculateDistanceKm } from './utils/deviceSensors';
 import { soundManager } from './utils/audio';
 import confetti from 'canvas-confetti';
 
@@ -167,6 +168,79 @@ export default function App() {
       if (typeof unsubEvents === 'function') unsubEvents();
     };
   }, [session, roomCode, currentUserId]);
+
+  // Real-Time Hardware Sensor Telemetry (Phone Battery + Live GPS Speed & Location)
+  useEffect(() => {
+    if (!session) return;
+
+    // 1. Monitor actual phone battery level and charging state
+    const unsubBattery = monitorPhoneBattery(({ battery, isCharging }) => {
+      let nextState;
+      setState((prev) => {
+        nextState = {
+          ...prev,
+          [currentUserId]: {
+            ...prev[currentUserId],
+            battery,
+            isCharging,
+          },
+        };
+        return nextState;
+      });
+      if (nextState) {
+        cloudSync.updateState(nextState);
+      }
+    });
+
+    // 2. Monitor live device GPS location and travel speed automatically
+    const unsubLocation = monitorLiveLocationAndSpeed((geoData) => {
+      let nextState;
+      setState((prev) => {
+        const partnerRole = currentUserId === 'partnerA' ? 'partnerB' : 'partnerA';
+        const partnerCoords = prev[partnerRole]?.coords;
+        let distanceKm = prev.distanceKm;
+
+        // If partner's real GPS is available, calculate exact live distance!
+        if (partnerCoords && partnerCoords.lat && partnerCoords.lng) {
+          const calculatedDist = calculateDistanceKm(
+            geoData.lat,
+            geoData.lng,
+            partnerCoords.lat,
+            partnerCoords.lng
+          );
+          if (calculatedDist !== null) {
+            distanceKm = calculatedDist;
+          }
+        }
+
+        nextState = {
+          ...prev,
+          distanceKm,
+          [currentUserId]: {
+            ...prev[currentUserId],
+            speedKmH: geoData.speedKmH,
+            activity: geoData.activity,
+            isMoving: geoData.isMoving,
+            coords: {
+              lat: geoData.lat,
+              lng: geoData.lng,
+              accuracy: geoData.accuracy,
+            },
+          },
+        };
+        return nextState;
+      });
+
+      if (nextState) {
+        cloudSync.updateState(nextState);
+      }
+    });
+
+    return () => {
+      unsubBattery();
+      unsubLocation();
+    };
+  }, [session, currentUserId]);
 
   // Sync state to local storage whenever it changes
   useEffect(() => {

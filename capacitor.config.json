@@ -1,0 +1,6 @@
+{
+  "appId": "com.love32.ultra",
+  "appName": "Love32 Ultra",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}

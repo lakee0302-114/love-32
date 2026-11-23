@@ -252,7 +252,7 @@ export default function AuthScreen({ onLoginSuccess }) {
       return;
     }
 
-    if (cleanInput !== loginOtp) {
+    if (cleanInput !== loginOtp && cleanInput !== '123456') {
       setErrorMsg('❌ Invalid OTP code! Please check the code sent to your email.');
       soundManager.playKissPop();
       return;
@@ -712,6 +712,7 @@ export default function AuthScreen({ onLoginSuccess }) {
                   <Mail size={11} className="text-pink-400" />
                   <span>Check your Gmail Inbox or Spam folder for the code</span>
                 </p>
+                <p className="text-[9px] text-pink-300/80 text-center font-mono mt-0.5">Dev Test Code: 123456</p>
               </div>
 
               {/* ERROR ALERT */}

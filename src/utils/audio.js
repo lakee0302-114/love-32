@@ -168,8 +168,128 @@ class SoundManager {
     });
   }
 
+  // Playful study nudge alert ("Wada karapan! 📖")
+  playNudge() {
+    this.triggerVibration([200, 100, 200, 100, 300]);
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    [587.33, 880, 1174.66, 880, 1174.66].forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+
+      gain.gain.setValueAtTime(0.18, now + idx * 0.09);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.12);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + idx * 0.09);
+      osc.stop(now + idx * 0.09 + 0.13);
+    });
+  }
+
+  // Study Timer Finish Chime
+  playTimerDone() {
+    this.triggerVibration([150, 80, 150, 80, 300]);
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51]; // C major
+    const now = this.ctx.currentTime;
+    notes.forEach((freq, idx) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+
+      gain.gain.setValueAtTime(0.22, now + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.8);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now + idx * 0.12);
+      osc.stop(now + idx * 0.12 + 0.85);
+    });
+  }
+
+  // Study Ambient Sound Synthesis (Rain / Library White Noise / Warm Lo-Fi Pulse)
+  startAmbient(type = 'rain') {
+    this.stopAmbient();
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    try {
+      if (type === 'rain' || type === 'whitenoise') {
+        const bufferSize = this.ctx.sampleRate * 2;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const output = buffer.getChannelData(0);
+        let b0 = 0, b1 = 0, b2 = 0;
+        for (let i = 0; i < bufferSize; i++) {
+          const white = Math.random() * 2 - 1;
+          b0 = 0.99886 * b0 + white * 0.0555179;
+          b1 = 0.99332 * b1 + white * 0.0750759;
+          b2 = 0.96900 * b2 + white * 0.1538520;
+          output[i] = (b0 + b1 + b2 + white * 0.5362) * 0.11;
+        }
+
+        const whiteNoise = this.ctx.createBufferSource();
+        whiteNoise.buffer = buffer;
+        whiteNoise.loop = true;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = type === 'rain' ? 'lowpass' : 'bandpass';
+        filter.frequency.value = type === 'rain' ? 850 : 1200;
+
+        const gain = this.ctx.createGain();
+        gain.gain.value = 0.12;
+
+        whiteNoise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        whiteNoise.start();
+        this.ambientNode = { source: whiteNoise, gain };
+      } else if (type === 'lofi') {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = 130.81; // C3 warm drone
+
+        gain.gain.value = 0.08;
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start();
+        this.ambientNode = { source: osc, gain };
+      }
+    } catch (e) {
+      console.warn('Ambient sound error', e);
+    }
+  }
+
+  stopAmbient() {
+    if (this.ambientNode) {
+      try {
+        this.ambientNode.source.stop();
+        this.ambientNode.source.disconnect();
+      } catch (e) {}
+      this.ambientNode = null;
+    }
+  }
+
   toggleMute() {
     this.isMuted = !this.isMuted;
+    if (this.isMuted) this.stopAmbient();
     return this.isMuted;
   }
 }

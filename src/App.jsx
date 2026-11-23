@@ -14,6 +14,7 @@ import AboutPhoneStatusModal from './components/AboutPhoneStatusModal';
 import AnniversaryModal from './components/AnniversaryModal';
 import ScreenBombOverlay from './components/ScreenBombOverlay';
 import AuthScreen from './components/AuthScreen';
+import ALStudyHub from './components/ALStudyHub';
 
 import {
   initialCoupleState,
@@ -215,12 +216,13 @@ export default function App() {
             loveLetters: remoteState.loveLetters || prev.loveLetters,
             dailyQuestion: remoteState.dailyQuestion ? { ...prev.dailyQuestion, ...remoteState.dailyQuestion } : prev.dailyQuestion,
             bucketList: remoteState.bucketList || prev.bucketList,
+            alStudy: remoteState.alStudy ? { ...prev.alStudy, ...remoteState.alStudy } : prev.alStudy,
           };
         });
       }
     });
 
-    // 2. Subscribe to Live Events (Heartbeat, Kiss, Screen Bomb, Partner Joined)
+    // 2. Subscribe to Live Events (Heartbeat, Kiss, Screen Bomb, Partner Joined, Study Nudges)
     const unsubEvents = cloudSync.subscribeEvents(activeRoom, (event) => {
       if (!event || !event.type) return;
       if (event.senderClientId === cloudSync.clientId) return; // Skip own events
@@ -263,6 +265,29 @@ export default function App() {
         showToast(`💋 ${event.senderName} blew you a sweet kiss!`);
       } else if (event.type === 'SCREEN_BOMB') {
         setActiveScreenBomb(event.payload);
+      } else if (event.type === 'study_reaction') {
+        const rType = event.payload?.type;
+        if (rType === 'nudge') {
+          soundManager.playNudge();
+          showToast(`📢 ${event.senderName}: "Wada karapan! 📖" Nudge received!`);
+        } else if (rType === 'water') {
+          soundManager.playChime();
+          showToast(`💧 ${event.senderName} says: "Drink water & stay hydrated! 🥤"`);
+        } else if (rType === 'proud') {
+          soundManager.playSuccess();
+          try { confetti({ particleCount: 60, spread: 70 }); } catch (e) {}
+          showToast(`🌟 ${event.senderName} is super proud of your studying! 💖`);
+        } else if (rType === 'coffee') {
+          soundManager.playChime();
+          showToast(`☕ ${event.senderName}: "How about a coffee break? ☕"`);
+        }
+      } else if (event.type === 'study_session_start') {
+        soundManager.playChime();
+        showToast(`🔥 ${event.senderName} started a ${event.payload?.duration}m ${event.payload?.subject?.toUpperCase()} session!`);
+      } else if (event.type === 'study_challenge') {
+        soundManager.playSuccess();
+        try { confetti({ particleCount: 50, spread: 60 }); } catch (e) {}
+        showToast(`⚔️ ${event.senderName} sent you an A/L Challenge! Can you solve it?`);
       }
     });
 
@@ -294,6 +319,7 @@ export default function App() {
             loveLetters: remoteState.loveLetters || prev.loveLetters,
             dailyQuestion: remoteState.dailyQuestion ? { ...prev.dailyQuestion, ...remoteState.dailyQuestion } : prev.dailyQuestion,
             bucketList: remoteState.bucketList || prev.bucketList,
+            alStudy: remoteState.alStudy ? { ...prev.alStudy, ...remoteState.alStudy } : prev.alStudy,
           };
         });
       }
@@ -315,6 +341,29 @@ export default function App() {
         showToast(`💋 ${event.senderName} blew you a sweet kiss!`);
       } else if (event.type === 'SCREEN_BOMB') {
         setActiveScreenBomb(event.payload);
+      } else if (event.type === 'study_reaction') {
+        const rType = event.payload?.type;
+        if (rType === 'nudge') {
+          soundManager.playNudge();
+          showToast(`📢 ${event.senderName}: "Wada karapan! 📖" Nudge received!`);
+        } else if (rType === 'water') {
+          soundManager.playChime();
+          showToast(`💧 ${event.senderName} says: "Drink water & stay hydrated! 🥤"`);
+        } else if (rType === 'proud') {
+          soundManager.playSuccess();
+          try { confetti({ particleCount: 60, spread: 70 }); } catch (e) {}
+          showToast(`🌟 ${event.senderName} is super proud of your studying! 💖`);
+        } else if (rType === 'coffee') {
+          soundManager.playChime();
+          showToast(`☕ ${event.senderName}: "How about a coffee break? ☕"`);
+        }
+      } else if (event.type === 'study_session_start') {
+        soundManager.playChime();
+        showToast(`🔥 ${event.senderName} started a ${event.payload?.duration}m ${event.payload?.subject?.toUpperCase()} session!`);
+      } else if (event.type === 'study_challenge') {
+        soundManager.playSuccess();
+        try { confetti({ particleCount: 50, spread: 60 }); } catch (e) {}
+        showToast(`⚔️ ${event.senderName} sent you an A/L Challenge! Can you solve it?`);
       }
     });
 
@@ -772,7 +821,27 @@ export default function App() {
               onOpenAnniversary={() => setShowAnniversaryModal(true)}
               onOpenPremium={() => setShowPremiumModal(true)}
               onOpenPhoneStatus={() => setShowPhoneStatusModal(true)}
+              onOpenStudyHub={() => setActiveTab('study')}
               theme={theme}
+            />
+          )}
+
+          {activeTab === 'study' && (
+            <ALStudyHub
+              state={state}
+              currentUserId={currentUserId}
+              currentUserName={currentUser.name}
+              partnerUserName={partnerUser.name}
+              onUpdateState={(updater) => {
+                let next;
+                setState((prev) => {
+                  next = typeof updater === 'function' ? updater(prev) : updater;
+                  return next;
+                });
+                broadcastSyncState(next);
+              }}
+              onBroadcastEvent={broadcastSyncEvent}
+              showToast={showToast}
             />
           )}
 

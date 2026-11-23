@@ -154,6 +154,36 @@ export const initialCoupleState = {
     { id: 6, title: '📸 Recreate our very first anniversary photo', completed: false },
   ],
 
+  // A/L Couple Study & Question Hub
+  alStudy: {
+    examYear: '2026',
+    activeSession: null, // { startedBy: 'Lakee', subject: 'Physics', duration: 25, startTimestamp: 0, isRunning: false }
+    todayMinutes: { partnerA: 50, partnerB: 45 },
+    streakDays: 4,
+    sharedTargets: [
+      { id: 't1', title: 'Physics 2022 MCQs 1-25', subject: 'Physics', completed: false, addedBy: 'Lakee' },
+      { id: 't2', title: 'Combined Maths Trigonometry Proofs', subject: 'Combined Maths', completed: true, addedBy: 'Lakee' },
+      { id: 't3', title: 'Chemistry Organic Reactions Chart', subject: 'Chemistry', completed: false, addedBy: 'Partner' }
+    ],
+    customChallenges: [
+      {
+        id: 'c1',
+        from: 'Lakee',
+        subject: 'physics',
+        topic: 'Mechanics (චලිතය)',
+        question: 'කේන්ද්‍රාභිසාරී ත්වරණය සෙවීමේ නිවැරදි සූත්‍රය කුමක්ද?',
+        options: ['v / r', 'v² / r', 'v / r²', 'v² · r'],
+        correctIndex: 1,
+        partnerAnswer: null,
+        createdDate: 'Today'
+      }
+    ],
+    quizScores: {
+      partnerA: 20,
+      partnerB: 20
+    }
+  },
+
   // Live Screen Bomb notification to trigger
   incomingScreenBomb: null,
 };
@@ -185,6 +215,7 @@ export const loadSavedState = () => {
         ...parsed,
         partnerA: { ...initialCoupleState.partnerA, ...(parsed.partnerA || {}) },
         partnerB: { ...initialCoupleState.partnerB, ...(parsed.partnerB || {}) },
+        alStudy: { ...initialCoupleState.alStudy, ...(parsed.alStudy || {}) },
       };
     }
   } catch (e) {

@@ -50,6 +50,7 @@ export default function HomeScreen({
   onOpenAnniversary,
   onOpenPremium,
   onOpenPhoneStatus,
+  onOpenStudyHub,
   theme,
 }) {
   const [viewMode, setViewMode] = useState('googleMap'); // 'googleMap' (Default - Love8 Google Map) | 'classicRadar'
@@ -163,6 +164,20 @@ export default function HomeScreen({
           partnerCode={partnerCode}
           theme={theme}
         />
+
+        {/* Floating Quick Button for A/L Study Hub */}
+        <button
+          type="button"
+          onClick={() => {
+            soundManager.playKissPop();
+            if (onOpenStudyHub) onOpenStudyHub();
+          }}
+          className="absolute top-16 left-3.5 z-20 px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-900/90 via-purple-900/90 to-rose-900/90 border border-indigo-400/40 shadow-xl text-[10px] font-black text-white hover:scale-105 active:scale-95 transition flex items-center gap-1.5 backdrop-blur-md"
+          title="Open A/L Study & Quiz Hub"
+        >
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          <span>🎓 A/L Study Hub</span>
+        </button>
 
         {/* Floating switch to classic radar */}
         <button

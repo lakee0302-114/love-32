@@ -72,16 +72,17 @@ jobs:
       - name: Create GitHub Release with Direct Download APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.4
-          name: "Love32 Ultra Android APK v1.0.4 (Instant Direct Sign In & Clean UI)"
+          tag_name: v1.0.5
+          name: "Love32 Ultra Android APK v1.0.5 (Cloud Auto-Update & Mobile Scroll/Touch Fixes)"
           body: |
-            🚀 Official Android APK Release v1.0.4 for Love32 Ultra!
+            🚀 Official Android APK Release v1.0.5 for Love32 Ultra!
             
-            ### ✨ What's New in v1.0.4:
-            - ⚡ **Instant Direct Sign In**: No OTP roadblocks or email delays — login directly with your password!
-            - 💎 **Pure Commercial Studio UI**: Completely removed all debug and test code hints.
-            - ☁️ **Permanent Google Firebase RTDB Sync**: Multi-device real-time cloud data sync.
-            - 🖤 **5 Luxury Romantic Themes**: Smooth ambient lighting and safe-area viewport.
+            ### ✨ What's New in v1.0.5:
+            - 🔄 **Cloud Auto-Update Engine**: Permanent real-time auto-synchronization with Firebase Hosting. Future updates apply automatically without APK reinstall!
+            - 👆 **Fixed Button Touch Responsiveness**: Elevated all action controls, Quick Kiss, radar drawer, and modals with mobile tap optimization.
+            - 📜 **Full Vertical Inertia Scrolling**: Smooth 60fps scrolling unlocked across all tabs, memories, radar view, and study room.
+            - ⚡ **Instant Direct Sign In**: No OTP roadblocks or email delays.
+            - ☁️ **Google Firebase RTDB Sync**: Multi-device real-time cloud data sync.
           files: Love32-Ultra.apk
           make_latest: true
         env:

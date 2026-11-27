@@ -22,7 +22,7 @@ export default function Navigation({ activeTab, onSelectTab }) {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-30 bg-slate-950/85 dark:bg-slate-950/85 backdrop-blur-2xl border-t border-slate-200/80 dark:border-rose-500/20 px-1 pt-1.5 transition-all select-none"
+      className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-2xl border-t border-slate-800/80 px-1 pt-1.5 transition-all select-none pointer-events-auto"
       style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom, 8px))' }}
     >
       <div className="max-w-md mx-auto grid grid-cols-7 gap-0.5">
@@ -32,8 +32,9 @@ export default function Navigation({ activeTab, onSelectTab }) {
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => handleTabClick(tab.id)}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-0.5 rounded-2xl transition-all duration-200 active:scale-95 ${
+              className={`relative flex flex-col items-center justify-center py-1.5 px-0.5 rounded-2xl transition-all duration-200 active:scale-95 cursor-pointer touch-manipulation ${
                 isActive
                   ? 'text-rose-500 dark:text-rose-400 bg-rose-500/15 font-black scale-105 shadow-sm'
                   : 'text-slate-400 hover:text-white hover:bg-slate-800/40 font-medium'

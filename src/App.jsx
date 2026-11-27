@@ -30,6 +30,7 @@ import { cloudSync } from './utils/cloudSync';
 import { firebaseSync, getSavedRoomCode, saveRoomCode } from './utils/firebase';
 import { monitorPhoneBattery, monitorLiveLocationAndSpeed, calculateDistanceKm } from './utils/deviceSensors';
 import { soundManager } from './utils/audio';
+import { CURRENT_APP_VERSION, startAutoUpdateWatcher, applyUpdateNow } from './utils/autoUpdater';
 import confetti from 'canvas-confetti';
 
 const AUTH_STORAGE_KEY = 'love8_user_auth_session';
@@ -80,6 +81,18 @@ export default function App() {
   const [incomingFlash, setIncomingFlash] = useState(false);
   const [incomingBedtimeLock, setIncomingBedtimeLock] = useState(null); // { senderName, message, type }
   const [incomingPointer, setIncomingPointer] = useState(null);
+
+  // Real-Time Cloud Auto-Update Engine
+  const [updateAvailable, setUpdateAvailable] = useState(null);
+
+  useEffect(() => {
+    const unsub = startAutoUpdateWatcher((updateInfo) => {
+      setUpdateAvailable(updateInfo);
+    });
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, []);
 
   const handleToggleTheme = (newTheme) => {
     const target = newTheme || (theme === 'midnight' ? 'sakura' : 'midnight');
@@ -949,7 +962,31 @@ export default function App() {
       </div>
 
       {/* Main Container - Mobile Edge-to-Edge with Desktop Phone Frame */}
-      <div className="relative z-10 w-full md:max-w-md min-h-screen min-h-[100dvh] flex flex-col md:border-x md:border-slate-800/80 bg-white/95 dark:bg-slate-950/90 shadow-2xl overflow-x-hidden">
+      <div className="relative z-10 w-full md:max-w-md h-[100dvh] max-h-[100dvh] flex flex-col md:border-x md:border-slate-800/80 bg-white/95 dark:bg-slate-950/90 shadow-2xl overflow-hidden">
+        {/* Real-time Cloud Auto-Update Banner */}
+        {updateAvailable && (
+          <div className="relative z-50 p-2.5 mx-2.5 mt-2 rounded-2xl bg-gradient-to-r from-purple-900/95 via-rose-950/95 to-slate-900/95 border border-rose-400/50 shadow-2xl backdrop-blur-xl flex items-center justify-between animate-fadeIn text-white pointer-events-auto">
+            <div className="flex items-center gap-2">
+              <span className="text-base animate-pulse">🚀</span>
+              <div>
+                <div className="text-[11px] font-black">
+                  New Update v{updateAvailable.version || '1.0.5'} Ready!
+                </div>
+                <div className="text-[9px] text-slate-300">
+                  Auto Cloud Update • Tap to reload
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => applyUpdateNow()}
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white font-extrabold text-[11px] shadow hover:opacity-95 active:scale-95 transition cursor-pointer touch-manipulation"
+            >
+              Update Now ✨
+            </button>
+          </div>
+        )}
+
         {/* Header with Settings Button (Shown on non-map tabs; Home tab uses Google Map floating top bar) */}
         {activeTab !== 'home' && (
           <Header
@@ -965,7 +1002,14 @@ export default function App() {
         )}
 
         {/* Dynamic View Content with Mobile Bottom Padding */}
-        <main className={`flex-1 ${activeTab === 'home' ? 'p-0 overflow-hidden relative' : 'p-3.5 sm:p-4 pb-28 overflow-y-auto'}`}>
+        <main
+          className={`flex-1 min-h-0 w-full ${
+            activeTab === 'home'
+              ? 'p-0 overflow-hidden relative'
+              : 'p-3.5 sm:p-4 pb-28 overflow-y-auto overscroll-contain'
+          }`}
+          style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}
+        >
           {activeTab === 'home' && (
             <HomeScreen
               state={state}

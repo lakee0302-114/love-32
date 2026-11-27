@@ -168,16 +168,16 @@ export default function HomeScreen({
         />
 
         {/* Sleek Mobile Floating Quick Action Capsule */}
-        <div className="absolute top-14 left-3 right-3 z-20 flex items-center justify-between pointer-events-none select-none">
+        <div className="absolute top-16 left-3 right-3 z-30 flex items-center justify-between pointer-events-none select-none">
           {/* Left: Quick Actions Capsule */}
-          <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-950/85 backdrop-blur-2xl border border-white/10 shadow-2xl pointer-events-auto">
+          <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-950/90 backdrop-blur-2xl border border-white/15 shadow-2xl pointer-events-auto">
             <button
               type="button"
               onClick={() => {
                 soundManager.playKissPop();
                 if (onOpenStudyHub) onOpenStudyHub();
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600/90 to-purple-600/90 text-white text-[10px] font-black shadow-md flex items-center gap-1 active:scale-95 transition"
+              className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600/90 to-purple-600/90 text-white text-[10px] font-black shadow-md flex items-center gap-1 active:scale-95 transition cursor-pointer touch-manipulation"
               title="Open A/L Study Hub"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
@@ -190,7 +190,7 @@ export default function HomeScreen({
                 soundManager.playKissPop();
                 if (onOpenScreenShare) onOpenScreenShare();
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-purple-900/60 hover:bg-purple-800/80 text-purple-200 text-[10px] font-bold flex items-center gap-1 active:scale-95 transition border border-purple-500/30"
+              className="px-2.5 py-1.5 rounded-xl bg-purple-900/60 hover:bg-purple-800/80 text-purple-200 text-[10px] font-bold flex items-center gap-1 active:scale-95 transition border border-purple-500/30 cursor-pointer touch-manipulation"
               title="Live Screen Share"
             >
               <span>📺 Screen</span>
@@ -202,7 +202,7 @@ export default function HomeScreen({
                 soundManager.playKissPop();
                 if (onOpenRemoteControl) onOpenRemoteControl();
               }}
-              className="px-2.5 py-1.5 rounded-xl bg-rose-900/60 hover:bg-rose-800/80 text-rose-200 text-[10px] font-bold flex items-center gap-1 active:scale-95 transition border border-rose-500/30"
+              className="px-2.5 py-1.5 rounded-xl bg-rose-900/60 hover:bg-rose-800/80 text-rose-200 text-[10px] font-bold flex items-center gap-1 active:scale-95 transition border border-rose-500/30 cursor-pointer touch-manipulation"
               title="Remote Control Center"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
@@ -217,7 +217,7 @@ export default function HomeScreen({
               soundManager.playKissPop();
               setViewMode('classicRadar');
             }}
-            className="px-2.5 py-1.5 rounded-2xl bg-slate-950/85 backdrop-blur-2xl border border-white/10 text-slate-200 hover:text-white shadow-2xl active:scale-95 transition pointer-events-auto flex items-center gap-1 text-[10px] font-bold"
+            className="px-2.5 py-1.5 rounded-2xl bg-slate-950/90 backdrop-blur-2xl border border-white/15 text-slate-200 hover:text-white shadow-2xl active:scale-95 transition pointer-events-auto flex items-center gap-1 text-[10px] font-bold cursor-pointer touch-manipulation"
             title="Switch to Classic Radar View"
           >
             <span>🎯</span>
@@ -229,7 +229,7 @@ export default function HomeScreen({
   }
 
   return (
-    <div className="space-y-4 pb-20 animate-fadeIn">
+    <div className="w-full h-full overflow-y-auto p-3.5 sm:p-4 pb-28 space-y-4 animate-fadeIn overscroll-contain" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
       {/* Return to Google Map Button */}
       <button
         type="button"

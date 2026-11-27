@@ -383,10 +383,10 @@ export default function GoogleMapView({
     <div className="relative w-full h-[calc(100vh-65px)] overflow-hidden select-none bg-slate-100 dark:bg-slate-900">
       
       {/* 1. Full-screen Google Maps Leaflet Container */}
-      <div ref={mapContainerRef} className="absolute inset-0 z-0 w-full h-full" />
+      <div ref={mapContainerRef} className="absolute inset-0 z-0 w-full h-full" style={{ isolation: 'isolate', zIndex: 0 }} />
 
       {/* 2. Top Floating Navigation Bar (Matches Screenshot) */}
-      <div className="absolute top-3 inset-x-3 z-20 flex items-center justify-between pointer-events-none">
+      <div className="absolute top-3 inset-x-3 z-30 flex items-center justify-between pointer-events-none">
         {/* Left: Hexagon Settings Icon ⬡ */}
         <button
           type="button"
@@ -394,7 +394,7 @@ export default function GoogleMapView({
             soundManager.playKissPop();
             if (onOpenSettings) onOpenSettings();
           }}
-          className="w-11 h-11 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-xl flex items-center justify-center text-slate-800 dark:text-slate-100 hover:scale-105 active:scale-95 transition pointer-events-auto"
+          className="w-11 h-11 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-xl flex items-center justify-center text-slate-800 dark:text-slate-100 hover:scale-105 active:scale-95 transition pointer-events-auto cursor-pointer"
           title="Open Settings"
         >
           <Hexagon size={20} className="stroke-[2.5]" />
@@ -407,7 +407,7 @@ export default function GoogleMapView({
             soundManager.playKissPop();
             if (onOpenAnniversary) onOpenAnniversary();
           }}
-          className="relative px-5 py-2 rounded-2xl bg-white/95 dark:bg-slate-900/95 border-2 border-pink-200/90 dark:border-pink-900/70 shadow-xl flex items-center justify-center hover:scale-105 active:scale-95 transition pointer-events-auto group"
+          className="relative px-5 py-2 rounded-2xl bg-white/95 dark:bg-slate-900/95 border-2 border-pink-200/90 dark:border-pink-900/70 shadow-xl flex items-center justify-center hover:scale-105 active:scale-95 transition pointer-events-auto group cursor-pointer"
         >
           {/* Pink Ribbon / Bow on Top */}
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-lg filter drop-shadow">
@@ -432,7 +432,7 @@ export default function GoogleMapView({
             soundManager.playKissPop();
             if (onOpenSettings) onOpenSettings();
           }}
-          className="w-11 h-11 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-xl flex items-center justify-center text-slate-800 dark:text-slate-100 hover:scale-105 active:scale-95 transition pointer-events-auto"
+          className="w-11 h-11 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200/80 dark:border-slate-800 shadow-xl flex items-center justify-center text-slate-800 dark:text-slate-100 hover:scale-105 active:scale-95 transition pointer-events-auto cursor-pointer"
           title="Notifications"
         >
           <Bell size={20} className="stroke-[2.5]" />
@@ -440,7 +440,7 @@ export default function GoogleMapView({
       </div>
 
       {/* 3. Floating Right Action Controls */}
-      <div className="absolute right-3.5 top-1/2 -translate-y-12 z-20 flex flex-col items-center gap-3">
+      <div className="absolute right-3.5 top-1/2 -translate-y-12 z-30 flex flex-col items-center gap-3 pointer-events-auto">
         {/* Layer Picker Toggle */}
         <div className="relative">
           <button
@@ -507,23 +507,25 @@ export default function GoogleMapView({
 
       {/* 6. Interactive Bottom Sheet / Drawer */}
       <div
-        className={`absolute bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800 shadow-2xl rounded-t-3xl transition-all duration-300 flex flex-col ${
-          drawerExpanded ? 'h-[68dvh]' : 'h-24'
+        className={`absolute inset-x-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800 shadow-2xl rounded-t-3xl transition-all duration-300 flex flex-col pointer-events-auto ${
+          drawerExpanded ? 'bottom-[60px] h-[65dvh]' : 'bottom-[60px] h-20'
         }`}
       >
         {/* Drag Handle Bar */}
-        <div
+        <button
+          type="button"
           onClick={() => {
             soundManager.playKissPop();
             setDrawerExpanded(!drawerExpanded);
           }}
-          className="w-full pt-2 pb-1.5 flex flex-col items-center justify-center cursor-pointer group"
+          className="w-full pt-2 pb-1.5 flex flex-col items-center justify-center cursor-pointer group active:opacity-70 touch-manipulation"
+          aria-label="Toggle drawer"
         >
           <div className="w-12 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700 group-hover:bg-rose-500 transition-colors" />
-        </div>
+        </button>
 
         {/* Collapsed Bar View (Speed, Distance, Battery, Quick Love Actions) */}
-        <div className="px-4 pb-2 flex items-center justify-between">
+        <div className="px-4 pb-2 flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-100 to-rose-100 dark:from-slate-800 dark:to-purple-950 flex items-center justify-center text-xl shadow border border-slate-200 dark:border-slate-700">
@@ -550,21 +552,25 @@ export default function GoogleMapView({
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 pointer-events-auto">
             <button
               type="button"
               onClick={() => {
                 soundManager.playKissPop();
                 if (onSendQuickKiss) onSendQuickKiss();
               }}
-              className="px-3 py-1.5 rounded-xl bg-rose-500 text-white font-extrabold text-xs shadow-md hover:bg-rose-600 active:scale-95 transition flex items-center gap-1"
+              className="px-3 py-1.5 rounded-xl bg-rose-500 text-white font-extrabold text-xs shadow-md hover:bg-rose-600 active:scale-95 transition flex items-center gap-1 cursor-pointer touch-manipulation"
             >
               <span>💋 Kiss</span>
             </button>
             <button
               type="button"
-              onClick={() => setDrawerExpanded(!drawerExpanded)}
-              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition"
+              onClick={() => {
+                soundManager.playKissPop();
+                setDrawerExpanded(!drawerExpanded);
+              }}
+              className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 active:scale-95 transition cursor-pointer touch-manipulation"
+              aria-label="Expand drawer"
             >
               {drawerExpanded ? <ChevronDown size={18} /> : <ChevronUp size={18} />}
             </button>
@@ -573,7 +579,7 @@ export default function GoogleMapView({
 
         {/* Expanded Drawer Details */}
         {drawerExpanded && (
-          <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-3.5">
+          <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-3.5 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
             {/* Couple Telemetry Cards */}
             <div className="grid grid-cols-2 gap-2.5 pt-1">
               {/* Partner Card */}

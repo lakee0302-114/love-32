@@ -72,17 +72,16 @@ jobs:
       - name: Create GitHub Release with Direct Download APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.3
-          name: "Love32 Ultra Android APK v1.0.3 (Firebase RTDB & Luxury Themes)"
+          tag_name: v1.0.4
+          name: "Love32 Ultra Android APK v1.0.4 (Instant Direct Sign In & Clean UI)"
           body: |
-            🚀 Official Android APK Release v1.0.3 for Love32 Ultra!
+            🚀 Official Android APK Release v1.0.4 for Love32 Ultra!
             
-            ### ✨ What's New in v1.0.3:
-            - ☁️ **Live Google Firebase Realtime Database**: Permanent multi-device cloud synchronization (`love32-ultra-cloud`).
-            - 🖤 **5 Luxury Romantic Themes**: Midnight Obsidian, Sakura Blossom, Cosmic Aurora, Sunset Amber, Soft Velvet.
-            - 📱 **Mobile Touch Optimization**: 100dvh safe-area viewport, zero-lag touch response, and authentic mobile feel.
-            - 🛡️ **Zero-AI Commercial Rebranding**: Official release by Luvio Technologies Pte. Ltd. with AES-256 telemetry.
-            - 🗺️ **Full-Screen Distance Radar**: Real-time vehicle speed and distance calculation.
+            ### ✨ What's New in v1.0.4:
+            - ⚡ **Instant Direct Sign In**: No OTP roadblocks or email delays — login directly with your password!
+            - 💎 **Pure Commercial Studio UI**: Completely removed all debug and test code hints.
+            - ☁️ **Permanent Google Firebase RTDB Sync**: Multi-device real-time cloud data sync.
+            - 🖤 **5 Luxury Romantic Themes**: Smooth ambient lighting and safe-area viewport.
           files: Love32-Ultra.apk
           make_latest: true
         env:

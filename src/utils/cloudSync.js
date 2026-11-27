@@ -24,7 +24,7 @@ class CloudSyncService {
         clientId: this.clientId,
         clean: true,
         connectTimeout: 8000,
-        reconnectPeriod: 3000,
+        reconnectPeriod: 15000,
         keepalive: 30,
       });
 

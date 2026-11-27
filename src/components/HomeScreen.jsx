@@ -51,6 +51,8 @@ export default function HomeScreen({
   onOpenPremium,
   onOpenPhoneStatus,
   onOpenStudyHub,
+  onOpenScreenShare,
+  onOpenRemoteControl,
   theme,
 }) {
   const [viewMode, setViewMode] = useState('googleMap'); // 'googleMap' (Default - Love8 Google Map) | 'classicRadar'
@@ -144,7 +146,7 @@ export default function HomeScreen({
   // 🌟 GOOGLE MAP VIEW (Matches User Screenshot from Love8)
   if (viewMode === 'googleMap') {
     return (
-      <div className="relative w-full h-[calc(100vh-65px)]">
+      <div className="relative w-full h-[calc(100dvh-60px)] max-h-[100dvh] overflow-hidden">
         <GoogleMapView
           state={state}
           currentUserId={currentUserId}
@@ -165,33 +167,63 @@ export default function HomeScreen({
           theme={theme}
         />
 
-        {/* Floating Quick Button for A/L Study Hub */}
-        <button
-          type="button"
-          onClick={() => {
-            soundManager.playKissPop();
-            if (onOpenStudyHub) onOpenStudyHub();
-          }}
-          className="absolute top-16 left-3.5 z-20 px-3 py-1.5 rounded-full bg-gradient-to-r from-indigo-900/90 via-purple-900/90 to-rose-900/90 border border-indigo-400/40 shadow-xl text-[10px] font-black text-white hover:scale-105 active:scale-95 transition flex items-center gap-1.5 backdrop-blur-md"
-          title="Open A/L Study & Quiz Hub"
-        >
-          <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-          <span>🎓 A/L Study Hub</span>
-        </button>
+        {/* Sleek Mobile Floating Quick Action Capsule */}
+        <div className="absolute top-14 left-3 right-3 z-20 flex items-center justify-between pointer-events-none select-none">
+          {/* Left: Quick Actions Capsule */}
+          <div className="flex items-center gap-1 p-1 rounded-2xl bg-slate-950/85 backdrop-blur-2xl border border-white/10 shadow-2xl pointer-events-auto">
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playKissPop();
+                if (onOpenStudyHub) onOpenStudyHub();
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600/90 to-purple-600/90 text-white text-[10px] font-black shadow-md flex items-center gap-1 active:scale-95 transition"
+              title="Open A/L Study Hub"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span>🎓 A/L</span>
+            </button>
 
-        {/* Floating switch to classic radar */}
-        <button
-          type="button"
-          onClick={() => {
-            soundManager.playKissPop();
-            setViewMode('classicRadar');
-          }}
-          className="absolute top-16 right-3.5 z-20 px-3 py-1.5 rounded-full bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 shadow-xl text-[10px] font-black text-slate-800 dark:text-slate-100 hover:scale-105 active:scale-95 transition flex items-center gap-1.5"
-          title="Switch to Classic Radar View"
-        >
-          <span>🎯</span>
-          <span>Radar View</span>
-        </button>
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playKissPop();
+                if (onOpenScreenShare) onOpenScreenShare();
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-purple-900/60 hover:bg-purple-800/80 text-purple-200 text-[10px] font-bold flex items-center gap-1 active:scale-95 transition border border-purple-500/30"
+              title="Live Screen Share"
+            >
+              <span>📺 Screen</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                soundManager.playKissPop();
+                if (onOpenRemoteControl) onOpenRemoteControl();
+              }}
+              className="px-2.5 py-1.5 rounded-xl bg-rose-900/60 hover:bg-rose-800/80 text-rose-200 text-[10px] font-bold flex items-center gap-1 active:scale-95 transition border border-rose-500/30"
+              title="Remote Control Center"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-ping" />
+              <span>🎮 Remote</span>
+            </button>
+          </div>
+
+          {/* Right: Radar View Switcher */}
+          <button
+            type="button"
+            onClick={() => {
+              soundManager.playKissPop();
+              setViewMode('classicRadar');
+            }}
+            className="px-2.5 py-1.5 rounded-2xl bg-slate-950/85 backdrop-blur-2xl border border-white/10 text-slate-200 hover:text-white shadow-2xl active:scale-95 transition pointer-events-auto flex items-center gap-1 text-[10px] font-bold"
+            title="Switch to Classic Radar View"
+          >
+            <span>🎯</span>
+            <span>Radar</span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -242,7 +274,7 @@ export default function HomeScreen({
             </button>
             <button
               onClick={() => {
-                const origin = typeof window !== 'undefined' ? window.location.origin : 'https://love-32.vercel.app';
+                const origin = typeof window !== 'undefined' ? window.location.origin : 'https://love32-ultra-cloud.web.app';
                 const shareUrl = `https://wa.me/?text=${encodeURIComponent(`Hey my love! Connect with me on Love32 Ultra with my Partner Code: ${partnerCode} 💖 Link: ${origin}/?code=${partnerCode}`)}`;
                 window.open(shareUrl, '_blank');
               }}
@@ -677,38 +709,52 @@ export default function HomeScreen({
           <span className="text-[10px] text-slate-400">Instant on partner screen</span>
         </div>
 
-        <div className="grid grid-cols-3 gap-2.5">
+        <div className="grid grid-cols-4 gap-2">
           <button
             onClick={() => onSendHeartbeat()}
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition group active:scale-95"
+            className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition group active:scale-95"
           >
-            <div className="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 group-hover:bg-rose-500 group-hover:text-white transition">
-              <Heart size={20} className="fill-current" />
+            <div className="w-9 h-9 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 group-hover:scale-110 group-hover:bg-rose-500 group-hover:text-white transition">
+              <Heart size={18} className="fill-current" />
             </div>
-            <span className="text-xs font-semibold text-rose-200 mt-2">Heartbeat</span>
-            <span className="text-[10px] text-slate-400">Audio + Pulse</span>
+            <span className="text-[11px] font-bold text-rose-200 mt-1.5">Heartbeat</span>
+            <span className="text-[9px] text-slate-400">Pulse</span>
           </button>
 
           <button
             onClick={() => onSendQuickKiss()}
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 transition group active:scale-95"
+            className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 transition group active:scale-95"
           >
-            <div className="w-10 h-10 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400 group-hover:scale-110 group-hover:bg-pink-500 group-hover:text-white transition">
-              <span className="text-xl">💋</span>
+            <div className="w-9 h-9 rounded-full bg-pink-500/20 flex items-center justify-center text-pink-400 group-hover:scale-110 group-hover:bg-pink-500 group-hover:text-white transition">
+              <span className="text-lg">💋</span>
             </div>
-            <span className="text-xs font-semibold text-pink-200 mt-2">Blow Kiss</span>
-            <span className="text-[10px] text-slate-400">Kiss Pop</span>
+            <span className="text-[11px] font-bold text-pink-200 mt-1.5">Blow Kiss</span>
+            <span className="text-[9px] text-slate-400">Kiss Pop</span>
           </button>
 
           <button
             onClick={() => onOpenMissYou()}
-            className="flex flex-col items-center justify-center p-3 rounded-2xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 transition group active:scale-95"
+            className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 transition group active:scale-95"
           >
-            <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 group-hover:bg-purple-500 group-hover:text-white transition">
-              <span className="text-xl">💣</span>
+            <div className="w-9 h-9 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 group-hover:bg-purple-500 group-hover:text-white transition">
+              <span className="text-lg">💣</span>
             </div>
-            <span className="text-xs font-semibold text-purple-200 mt-2">Miss You Bomb</span>
-            <span className="text-[10px] text-slate-400">Screen Flash</span>
+            <span className="text-[11px] font-bold text-purple-200 mt-1.5">Miss You</span>
+            <span className="text-[9px] text-slate-400">Screen Bomb</span>
+          </button>
+
+          <button
+            onClick={() => {
+              soundManager.playKissPop();
+              if (onOpenRemoteControl) onOpenRemoteControl();
+            }}
+            className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-gradient-to-tr from-rose-950/70 via-red-950/50 to-purple-950/70 hover:from-rose-900/80 hover:to-red-900/80 border border-rose-500/40 transition group active:scale-95 shadow-md"
+          >
+            <div className="w-9 h-9 rounded-full bg-rose-500/30 flex items-center justify-center text-rose-300 group-hover:scale-110 transition">
+              <span className="text-lg">🎮</span>
+            </div>
+            <span className="text-[11px] font-black text-rose-300 mt-1.5">Remote</span>
+            <span className="text-[9px] text-rose-400 font-bold">Control</span>
           </button>
         </div>
       </div>

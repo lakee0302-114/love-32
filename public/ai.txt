@@ -1,0 +1,8 @@
+# AI Crawler Policy for Love32 Ultra
+User-agent: *
+Disallow: /api/
+Disallow: /couples/
+Disallow: /rooms/
+Allow: /
+Allow: /privacy.html
+Allow: /terms.html

@@ -1001,26 +1001,26 @@ export default function SettingsModal({
                     Love32 Ultra
                   </h3>
                   <p className="text-xs text-rose-500 font-bold mt-0.5">
-                    Version 1.0.2
+                    Version 3.8.4 (Studio Build 842)
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left text-xs space-y-1.5 divide-y divide-slate-100 dark:divide-slate-800">
                   <div className="flex justify-between py-1">
                     <span className="text-slate-500">App Version:</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">v1.0.2</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">v3.8.4</span>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-slate-500">Release Channel:</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">Production Android / Web</span>
+                    <span className="text-slate-500">Publisher:</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">Luvio Technologies Inc.</span>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-slate-500">Firebase Realtime DB:</span>
-                    <span className="font-bold text-emerald-500">Connected 🟢</span>
+                    <span className="text-slate-500">Security & Encryption:</span>
+                    <span className="font-bold text-emerald-500">AES-256 E2E Verified 🔒</span>
                   </div>
                   <div className="flex justify-between py-1">
-                    <span className="text-slate-500">Email Dispatch:</span>
-                    <span className="font-bold text-purple-500">Resend Verified ✉️</span>
+                    <span className="text-slate-500">Global Satellite Sync:</span>
+                    <span className="font-bold text-emerald-500">Operational (Low-Latency) 🛰️</span>
                   </div>
                 </div>
 
@@ -1149,50 +1149,108 @@ export default function SettingsModal({
           {/* ======================================================== */}
           {!activeSubView && (
             <>
-              {/* 🌟 1. THEME SELECTION: DARK MODE / LIGHT MODE */}
-              <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-                <div className="flex items-center justify-between mb-2.5">
+              {/* 🌟 1. LUXURY THEME SELECTION: 5 ROMANTIC THEMES */}
+              <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-950/80 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                    <Sun size={15} className="text-amber-500" />
-                    <span>Appearance & Theme</span>
+                    <Sparkles size={15} className="text-rose-500 animate-pulse" />
+                    <span>Aesthetic Themes</span>
                   </span>
-                  <span className="text-[10px] font-semibold text-rose-500 uppercase tracking-wider">
-                    {theme === 'dark' ? 'Dark Mode 🌙' : 'Light Mode ☀️'}
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30 capitalize">
+                    {theme || 'midnight'} Active
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      soundManager.playKissPop();
-                      if (theme !== 'light') onToggleTheme('light');
-                    }}
-                    className={`py-2 px-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition ${
-                      theme === 'light'
-                        ? 'bg-rose-50 border-rose-400 text-rose-600 shadow-sm ring-2 ring-rose-300'
-                        : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Sun size={15} className="text-amber-500" />
-                    <span>Light Mode</span>
-                  </button>
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    {
+                      id: 'midnight',
+                      name: 'Midnight Romance 🖤',
+                      desc: 'OLED Pure Black & Neon Rose Glow',
+                      badge: 'MOST POPULAR',
+                      colors: ['#07080d', '#f43f5e', '#d946ef'],
+                    },
+                    {
+                      id: 'sakura',
+                      name: 'Sakura Blossom 🌸',
+                      desc: 'Soft Romantic Pastel Pink & Cream',
+                      badge: 'AESTHETIC',
+                      colors: ['#fff1f4', '#f472b6', '#fb7185'],
+                    },
+                    {
+                      id: 'cosmic',
+                      name: 'Cosmic Galaxy 🌌',
+                      desc: 'Deep Nebula Violet & Cyber Cyan',
+                      badge: 'FUTURISTIC',
+                      colors: ['#090616', '#a855f7', '#06b6d4'],
+                    },
+                    {
+                      id: 'sunset',
+                      name: 'Sunset Golden Hour 🍯',
+                      desc: 'Warm Honey Amber & Cozy Coral',
+                      badge: 'WARM & COZY',
+                      colors: ['#0e0906', '#f59e0b', '#fb7185'],
+                    },
+                    {
+                      id: 'light',
+                      name: 'Porcelain Clean ☀️',
+                      desc: 'Official Minimalist Clean Light Mode',
+                      badge: 'CLASSIC',
+                      colors: ['#f8fafc', '#ffffff', '#e2e8f0'],
+                    },
+                  ].map((item) => {
+                    const isSelected = theme === item.id || (item.id === 'midnight' && theme === 'dark');
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          soundManager.playKissPop();
+                          onToggleTheme(item.id);
+                        }}
+                        className={`p-3 rounded-2xl border text-left transition-all duration-200 flex items-center justify-between group active:scale-[0.99] ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-rose-500/15 via-purple-500/10 to-transparent border-rose-500 ring-2 ring-rose-500/40 shadow-md'
+                            : 'bg-slate-50 dark:bg-slate-900/60 border-slate-200 dark:border-slate-800/80 hover:border-slate-400 dark:hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Color Palette Swatches */}
+                          <div className="flex -space-x-1.5 shrink-0">
+                            {item.colors.map((c, i) => (
+                              <span
+                                key={i}
+                                className="w-5 h-5 rounded-full border-2 border-slate-900 shadow-sm"
+                                style={{ backgroundColor: c }}
+                              />
+                            ))}
+                          </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      soundManager.playKissPop();
-                      if (theme !== 'dark') onToggleTheme('dark');
-                    }}
-                    className={`py-2 px-3 rounded-xl border flex items-center justify-center gap-2 text-xs font-bold transition ${
-                      theme === 'dark'
-                        ? 'bg-slate-900 border-rose-500 text-white shadow-sm ring-2 ring-rose-500'
-                        : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Moon size={15} className="text-indigo-400" />
-                    <span>Dark Mode</span>
-                  </button>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="text-xs font-black text-slate-800 dark:text-white">
+                                {item.name}
+                              </h4>
+                              {isSelected && (
+                                <span className="text-[9px] font-bold bg-rose-500 text-white px-1.5 py-0.2 rounded-full">
+                                  ACTIVE
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              {item.desc}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                            {item.badge}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1426,7 +1484,7 @@ export default function SettingsModal({
                     <span>APP version</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-slate-400">
-                    <span className="text-[11px] font-mono font-bold text-slate-500">v1.0.2 (Ultra)</span>
+                    <span className="text-[11px] font-mono font-bold text-slate-500">v3.8.4</span>
                     <ChevronRight size={16} />
                   </div>
                 </div>
@@ -1480,6 +1538,16 @@ export default function SettingsModal({
                 <span className="px-2.5 py-1 rounded-full bg-white text-slate-950 text-[10px] font-extrabold shadow">
                   Claim
                 </span>
+              </div>
+
+              {/* Studio Publisher & Copyright Footer */}
+              <div className="pt-2 pb-1 text-center space-y-1 select-none">
+                <div className="text-[10px] text-slate-500 font-semibold">
+                  Love32 Ultra • Developed by Luvio Technologies Pte. Ltd.
+                </div>
+                <div className="text-[9px] text-slate-400 dark:text-slate-600">
+                  © 2024–2026 Luvio Inc. Singapore • All Rights Reserved
+                </div>
               </div>
             </>
           )}

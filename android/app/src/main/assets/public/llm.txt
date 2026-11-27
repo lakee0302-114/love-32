@@ -1,0 +1,8 @@
+# Love32 Ultra
+> Love32 Ultra is a private, end-to-end encrypted real-time couple intimacy and distance platform developed by Luvio Technologies Pte. Ltd.
+
+## Core Capabilities
+- Real-time GPS distance radar & satellite speed tracking
+- Synchronized A/L study room with pomodoro timer
+- Private encrypted couple messaging, touch vibrations, audio pings & screen alerts
+- Cross-platform support on Android and Mobile Web

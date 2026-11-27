@@ -28,7 +28,10 @@ export default function Header({
 
   return (
     <>
-      <header className="sticky top-0 z-30 w-full backdrop-blur-xl bg-slate-950/80 border-b border-rose-500/20 px-4 py-2.5 transition">
+      <header
+        className="sticky top-0 z-30 w-full backdrop-blur-2xl bg-slate-950/80 border-b border-rose-500/20 px-4 pb-2.5 transition select-none"
+        style={{ paddingTop: 'max(10px, env(safe-area-inset-top, 10px))' }}
+      >
         <div className="max-w-md mx-auto flex items-center justify-between">
           {/* App Title & Pro Badge (Firebase Live icon completely removed as requested) */}
           <div className="flex items-center gap-2">

@@ -1,0 +1,11 @@
+/* TEAM */
+Publisher: Luvio Technologies Pte. Ltd.
+Product: Love32 Ultra
+Engineering: Core Mobile & Cloud Engineering Team
+Location: Singapore & Sri Lanka
+Contact: support@love32.app
+
+/* SITE */
+Standards: HTML5, CSS3, ES2024, WebSockets, Firebase Realtime Database
+Components: React, Vite, Lucide Icons, Tailwind CSS
+Software: Love32 Ultra Couple Telemetry Platform

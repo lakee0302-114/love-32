@@ -507,8 +507,8 @@ export default function GoogleMapView({
 
       {/* 6. Interactive Bottom Sheet / Drawer */}
       <div
-        className={`absolute bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800 shadow-2xl rounded-t-3xl transition-all duration-300 flex flex-col ${
-          drawerExpanded ? 'h-[65vh]' : 'h-24'
+        className={`absolute bottom-0 inset-x-0 z-30 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-t border-slate-200/80 dark:border-slate-800 shadow-2xl rounded-t-3xl transition-all duration-300 flex flex-col ${
+          drawerExpanded ? 'h-[68dvh]' : 'h-24'
         }`}
       >
         {/* Drag Handle Bar */}

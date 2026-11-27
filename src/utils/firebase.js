@@ -9,14 +9,13 @@ export const DEFAULT_ROOM_CODE = 'LOVE-6344';
 
 // Real Google Firebase Configuration from Firebase Console
 export const DEFAULT_FIREBASE_CONFIG = {
-  apiKey: "AIzaSyC1fwiVaQ-yp5fXwz17ZLMVHxdJ4E0pXKI",
-  authDomain: "love-32-78b8a.firebaseapp.com",
-  databaseURL: "https://love-32-78b8a-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "love-32-78b8a",
-  storageBucket: "love-32-78b8a.firebasestorage.app",
-  messagingSenderId: "549336218968",
-  appId: "1:549336218968:web:bfcf8fe7ac2e6eff43f92d",
-  measurementId: "G-B705SM47XQ"
+  apiKey: "AIzaSyAw5BtnkyUlCWzc3u3mLudMWe_s77CUgWU",
+  authDomain: "love32-ultra-cloud.firebaseapp.com",
+  databaseURL: "https://love32-ultra-cloud-default-rtdb.firebaseio.com",
+  projectId: "love32-ultra-cloud",
+  storageBucket: "love32-ultra-cloud.firebasestorage.app",
+  messagingSenderId: "639422743580",
+  appId: "1:639422743580:web:6842f838f07b90b8664bd9"
 };
 
 export const getFirebaseConfig = () => {
@@ -27,9 +26,7 @@ export const getFirebaseConfig = () => {
       config = { ...DEFAULT_FIREBASE_CONFIG, ...JSON.parse(raw) };
     }
   } catch (e) {}
-  if (!config.databaseURL || config.databaseURL.includes('firebaseio.com')) {
-    config.databaseURL = 'https://love-32-78b8a-default-rtdb.asia-southeast1.firebasedatabase.app';
-  }
+  config.databaseURL = 'https://love32-ultra-cloud-default-rtdb.firebaseio.com';
   return config;
 };
 
@@ -89,7 +86,7 @@ export const saveAccountToFirebase = async (account) => {
     updatedAt: Date.now(),
   };
   const config = getFirebaseConfig();
-  const baseUrl = config.databaseURL || 'https://love-32-78b8a-default-rtdb.asia-southeast1.firebasedatabase.app';
+  const baseUrl = config.databaseURL || 'https://love32-ultra-cloud-default-rtdb.firebaseio.com';
 
   // 1. Direct REST PUT (instant cross-device cloud persistence)
   try {
@@ -116,34 +113,40 @@ export const saveAccountToFirebase = async (account) => {
 
 export const fetchAccountFromFirebase = async (email) => {
   if (!email) return null;
-  const key = encodeEmailKey(email);
+  const key1 = encodeEmailKey(email);
+  const key2 = (email || '').toLowerCase().trim().replace(/[\.\#\$\[\]\@]/g, '_');
   const config = getFirebaseConfig();
-  const baseUrl = config.databaseURL || 'https://love-32-78b8a-default-rtdb.asia-southeast1.firebasedatabase.app';
+  const baseUrl = config.databaseURL || 'https://love32-ultra-cloud-default-rtdb.firebaseio.com';
 
   // 1. Direct REST query (fastest, ultra-reliable cross-device HTTP GET)
-  try {
-    const res = await fetch(`${baseUrl}/accounts/${key}.json`, { method: 'GET' });
-    if (res.ok) {
-      const data = await res.json();
-      if (data && typeof data === 'object' && data.email) {
-        return data;
+  for (const k of [key1, key2]) {
+    try {
+      const res = await fetch(`${baseUrl}/accounts/${encodeURIComponent(k)}.json`, { method: 'GET' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && typeof data === 'object' && data.email) {
+          return data;
+        }
       }
+    } catch (err) {
+      console.warn('[Firebase REST] Fetch account notice:', err.message);
     }
-  } catch (err) {
-    console.warn('[Firebase REST] Fetch account notice:', err.message);
   }
 
   // 2. Firebase SDK fallback
   if (!firebaseDb) initFirebase();
-  if (!firebaseDb) return null;
-  try {
-    const accountRef = ref(firebaseDb, `accounts/${key}`);
-    const snapshot = await get(accountRef);
-    if (snapshot.exists()) {
-      return snapshot.val();
+  if (firebaseDb) {
+    for (const k of [key1, key2]) {
+      try {
+        const accountRef = ref(firebaseDb, `accounts/${k}`);
+        const snapshot = await get(accountRef);
+        if (snapshot.exists()) {
+          return snapshot.val();
+        }
+      } catch (err) {
+        console.warn('[Firebase SDK] Fetch account notice:', err.message);
+      }
     }
-  } catch (err) {
-    console.warn('[Firebase SDK] Fetch account notice:', err.message);
   }
   return null;
 };
@@ -152,7 +155,7 @@ export const updatePasswordInFirebase = async (email, newPassword) => {
   if (!email || !newPassword) return;
   const key = encodeEmailKey(email);
   const config = getFirebaseConfig();
-  const baseUrl = config.databaseURL || 'https://love-32-78b8a-default-rtdb.asia-southeast1.firebasedatabase.app';
+  const baseUrl = config.databaseURL || 'https://love32-ultra-cloud-default-rtdb.firebaseio.com';
 
   try {
     await fetch(`${baseUrl}/accounts/${key}/password.json`, {

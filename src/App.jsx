@@ -15,6 +15,9 @@ import AnniversaryModal from './components/AnniversaryModal';
 import ScreenBombOverlay from './components/ScreenBombOverlay';
 import AuthScreen from './components/AuthScreen';
 import ALStudyHub from './components/ALStudyHub';
+import LiveScreenShareModal from './components/LiveScreenShareModal';
+import RemoteControlModal from './components/RemoteControlModal';
+import { BellRing, Moon, BookOpen, VolumeX, Zap } from 'lucide-react';
 
 import {
   initialCoupleState,
@@ -49,12 +52,14 @@ export default function App() {
   const [quickToast, setQuickToast] = useState(null);
   const [roomCode, setRoomCode] = useState(() => session?.partnerCode || getSavedRoomCode());
 
-  // Theme & Appearance Settings (Light Mode / Dark Mode)
+  // Theme & Appearance Settings (5 Luxury Romantic Themes: midnight, sakura, cosmic, sunset, light)
   const [theme, setTheme] = useState(() => {
     try {
-      return localStorage.getItem('love32_theme') || 'dark';
+      const saved = localStorage.getItem('love32_theme');
+      if (saved === 'dark') return 'midnight';
+      return saved || 'midnight';
     } catch (e) {
-      return 'dark';
+      return 'midnight';
     }
   });
 
@@ -63,14 +68,33 @@ export default function App() {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showPhoneStatusModal, setShowPhoneStatusModal] = useState(false);
   const [showAnniversaryModal, setShowAnniversaryModal] = useState(false);
+  const [showScreenShareModal, setShowScreenShareModal] = useState(false);
+  const [incomingScreenShareOffer, setIncomingScreenShareOffer] = useState(null);
+  const [incomingScreenShareAnswer, setIncomingScreenShareAnswer] = useState(null);
+  const [incomingScreenShareIce, setIncomingScreenShareIce] = useState(null);
+  const [isPartnerScreenSharing, setIsPartnerScreenSharing] = useState(false);
+
+  // Couple Remote Control States
+  const [showRemoteControlModal, setShowRemoteControlModal] = useState(false);
+  const [incomingSiren, setIncomingSiren] = useState(null); // { senderName, timestamp }
+  const [incomingFlash, setIncomingFlash] = useState(false);
+  const [incomingBedtimeLock, setIncomingBedtimeLock] = useState(null); // { senderName, message, type }
+  const [incomingPointer, setIncomingPointer] = useState(null);
 
   const handleToggleTheme = (newTheme) => {
-    const target = newTheme || (theme === 'dark' ? 'light' : 'dark');
+    const target = newTheme || (theme === 'midnight' ? 'sakura' : 'midnight');
     setTheme(target);
     try {
       localStorage.setItem('love32_theme', target);
     } catch (e) {}
-    showToast(`Switched to ${target === 'dark' ? 'Dark Mode 🌙' : 'Light Mode ☀️'}`);
+    const themeLabels = {
+      midnight: 'Midnight Romance 🖤',
+      sakura: 'Sakura Blossom 🌸',
+      cosmic: 'Cosmic Galaxy 🌌',
+      sunset: 'Sunset Golden Hour 🍯',
+      light: 'Porcelain Clean ☀️',
+    };
+    showToast(`Switched to ${themeLabels[target] || target}`);
   };
 
   // Dual Sync Engine: High-speed WebSocket relay + Official Google Firebase Realtime Database
@@ -288,6 +312,66 @@ export default function App() {
         soundManager.playSuccess();
         try { confetti({ particleCount: 50, spread: 60 }); } catch (e) {}
         showToast(`⚔️ ${event.senderName} sent you an A/L Challenge! Can you solve it?`);
+      } else if (event.type === 'SCREEN_SHARE_OFFER') {
+        soundManager.playChime();
+        setIncomingScreenShareOffer(event.payload);
+        setIsPartnerScreenSharing(true);
+        setShowScreenShareModal(true);
+        showToast(`📺 ${event.senderName} is sharing their screen with you!`);
+      } else if (event.type === 'SCREEN_SHARE_ANSWER') {
+        setIncomingScreenShareAnswer(event.payload);
+      } else if (event.type === 'SCREEN_SHARE_ICE') {
+        setIncomingScreenShareIce(event.payload);
+      } else if (event.type === 'SCREEN_SHARE_STOP') {
+        setIsPartnerScreenSharing(false);
+        setIncomingScreenShareOffer(null);
+        showToast(`🛑 ${event.senderName} stopped screen sharing.`);
+      } else if (event.type === 'REMOTE_RING_ALERT') {
+        soundManager.playRemoteSiren();
+        setIncomingSiren({ senderName: event.senderName, timestamp: Date.now() });
+      } else if (event.type === 'REMOTE_RING_ACK') {
+        soundManager.stopRemoteSiren();
+        setIncomingSiren(null);
+        showToast(`✅ ${event.senderName} acknowledged and stopped the siren!`);
+      } else if (event.type === 'REMOTE_VIBRATE_ALERT') {
+        const pattern = event.payload?.pattern || [120, 80, 150];
+        soundManager.triggerVibration(pattern);
+        soundManager.playKissPop();
+        showToast(`📳 ${event.senderName} sent a "${event.payload?.name || 'Haptic'}" buzz!`);
+      } else if (event.type === 'REMOTE_FLASH_ALERT') {
+        setIncomingFlash(true);
+        soundManager.playStrobePing();
+        setTimeout(() => setIncomingFlash(false), event.payload?.duration || 3500);
+      } else if (event.type === 'REMOTE_BEDTIME_TAKEOVER') {
+        setIncomingBedtimeLock({
+          senderName: event.senderName,
+          message: event.payload?.message,
+          type: event.payload?.type || 'bedtime',
+        });
+        if (event.payload?.type === 'bedtime') {
+          soundManager.playSleepLullaby();
+        } else {
+          soundManager.playNudge();
+        }
+      } else if (event.type === 'REMOTE_PING_STATUS') {
+        soundManager.playLaserClick();
+        showToast(`📡 ${event.senderName} pinged your device status!`);
+        monitorPhoneBattery(({ battery, isCharging }) => {
+          setState((prev) => {
+            const next = {
+              ...prev,
+              [currentUserId]: {
+                ...prev[currentUserId],
+                battery,
+                isCharging,
+              },
+            };
+            broadcastSyncState(next);
+            return next;
+          });
+        });
+      } else if (event.type === 'REMOTE_POINTER_CLICK') {
+        setIncomingPointer(event.payload);
       }
     });
 
@@ -364,6 +448,66 @@ export default function App() {
         soundManager.playSuccess();
         try { confetti({ particleCount: 50, spread: 60 }); } catch (e) {}
         showToast(`⚔️ ${event.senderName} sent you an A/L Challenge! Can you solve it?`);
+      } else if (event.type === 'SCREEN_SHARE_OFFER') {
+        soundManager.playChime();
+        setIncomingScreenShareOffer(event.payload);
+        setIsPartnerScreenSharing(true);
+        setShowScreenShareModal(true);
+        showToast(`📺 ${event.senderName} is sharing their screen with you!`);
+      } else if (event.type === 'SCREEN_SHARE_ANSWER') {
+        setIncomingScreenShareAnswer(event.payload);
+      } else if (event.type === 'SCREEN_SHARE_ICE') {
+        setIncomingScreenShareIce(event.payload);
+      } else if (event.type === 'SCREEN_SHARE_STOP') {
+        setIsPartnerScreenSharing(false);
+        setIncomingScreenShareOffer(null);
+        showToast(`🛑 ${event.senderName} stopped screen sharing.`);
+      } else if (event.type === 'REMOTE_RING_ALERT') {
+        soundManager.playRemoteSiren();
+        setIncomingSiren({ senderName: event.senderName, timestamp: Date.now() });
+      } else if (event.type === 'REMOTE_RING_ACK') {
+        soundManager.stopRemoteSiren();
+        setIncomingSiren(null);
+        showToast(`✅ ${event.senderName} acknowledged and stopped the siren!`);
+      } else if (event.type === 'REMOTE_VIBRATE_ALERT') {
+        const pattern = event.payload?.pattern || [120, 80, 150];
+        soundManager.triggerVibration(pattern);
+        soundManager.playKissPop();
+        showToast(`📳 ${event.senderName} sent a "${event.payload?.name || 'Haptic'}" buzz!`);
+      } else if (event.type === 'REMOTE_FLASH_ALERT') {
+        setIncomingFlash(true);
+        soundManager.playStrobePing();
+        setTimeout(() => setIncomingFlash(false), event.payload?.duration || 3500);
+      } else if (event.type === 'REMOTE_BEDTIME_TAKEOVER') {
+        setIncomingBedtimeLock({
+          senderName: event.senderName,
+          message: event.payload?.message,
+          type: event.payload?.type || 'bedtime',
+        });
+        if (event.payload?.type === 'bedtime') {
+          soundManager.playSleepLullaby();
+        } else {
+          soundManager.playNudge();
+        }
+      } else if (event.type === 'REMOTE_PING_STATUS') {
+        soundManager.playLaserClick();
+        showToast(`📡 ${event.senderName} pinged your device status!`);
+        monitorPhoneBattery(({ battery, isCharging }) => {
+          setState((prev) => {
+            const next = {
+              ...prev,
+              [currentUserId]: {
+                ...prev[currentUserId],
+                battery,
+                isCharging,
+              },
+            };
+            broadcastSyncState(next);
+            return next;
+          });
+        });
+      } else if (event.type === 'REMOTE_POINTER_CLICK') {
+        setIncomingPointer(event.payload);
       }
     });
 
@@ -769,21 +913,43 @@ export default function App() {
 
   return (
     <div
-      className={`min-h-screen ${
-        theme === 'light'
-          ? 'theme-light bg-slate-100 text-slate-900'
-          : 'theme-dark bg-slate-950 text-slate-100'
-      } flex flex-col items-center justify-start relative selection:bg-rose-500 selection:text-white transition-colors duration-300`}
+      className={`min-h-screen min-h-[100dvh] theme-${theme || 'midnight'} ${
+        theme === 'light' || theme === 'sakura'
+          ? 'bg-slate-100 text-slate-900'
+          : 'bg-slate-950 text-slate-100'
+      } flex flex-col items-center justify-start relative selection:bg-rose-500 selection:text-white transition-colors duration-300 w-full overflow-x-hidden`}
     >
-      {/* Background ambient lighting */}
+      {/* Background ambient lighting customized by selected theme */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-40 -left-40 w-96 h-96 bg-rose-500/15 rounded-full blur-[120px]" />
-        <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-500/15 rounded-full blur-[120px]" />
-        <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-pink-500/10 rounded-full blur-[120px]" />
+        {theme === 'sakura' ? (
+          <>
+            <div className="absolute -top-32 -left-32 w-80 h-80 bg-pink-300/25 rounded-full blur-[100px]" />
+            <div className="absolute top-1/3 -right-32 w-80 h-80 bg-rose-300/20 rounded-full blur-[100px]" />
+            <div className="absolute -bottom-32 left-1/3 w-80 h-80 bg-purple-200/20 rounded-full blur-[100px]" />
+          </>
+        ) : theme === 'cosmic' ? (
+          <>
+            <div className="absolute -top-32 -left-32 w-80 h-80 bg-purple-600/20 rounded-full blur-[100px]" />
+            <div className="absolute top-1/3 -right-32 w-80 h-80 bg-indigo-600/20 rounded-full blur-[100px]" />
+            <div className="absolute -bottom-32 left-1/3 w-80 h-80 bg-cyan-500/15 rounded-full blur-[100px]" />
+          </>
+        ) : theme === 'sunset' ? (
+          <>
+            <div className="absolute -top-32 -left-32 w-80 h-80 bg-amber-500/20 rounded-full blur-[100px]" />
+            <div className="absolute top-1/3 -right-32 w-80 h-80 bg-orange-600/20 rounded-full blur-[100px]" />
+            <div className="absolute -bottom-32 left-1/3 w-80 h-80 bg-rose-500/15 rounded-full blur-[100px]" />
+          </>
+        ) : (
+          <>
+            <div className="absolute -top-40 -left-40 w-96 h-96 bg-rose-500/15 rounded-full blur-[120px]" />
+            <div className="absolute top-1/3 -right-40 w-96 h-96 bg-purple-500/15 rounded-full blur-[120px]" />
+            <div className="absolute -bottom-40 left-1/3 w-96 h-96 bg-pink-500/10 rounded-full blur-[120px]" />
+          </>
+        )}
       </div>
 
-      {/* Main Container - Mobile First Frame */}
-      <div className="relative z-10 w-full max-w-md min-h-screen flex flex-col border-x border-slate-200 dark:border-slate-900 bg-white/95 dark:bg-slate-950/90 shadow-2xl">
+      {/* Main Container - Mobile Edge-to-Edge with Desktop Phone Frame */}
+      <div className="relative z-10 w-full md:max-w-md min-h-screen min-h-[100dvh] flex flex-col md:border-x md:border-slate-800/80 bg-white/95 dark:bg-slate-950/90 shadow-2xl overflow-x-hidden">
         {/* Header with Settings Button (Shown on non-map tabs; Home tab uses Google Map floating top bar) */}
         {activeTab !== 'home' && (
           <Header
@@ -798,8 +964,8 @@ export default function App() {
           />
         )}
 
-        {/* Dynamic View Content */}
-        <main className={`flex-1 ${activeTab === 'home' ? 'p-0 overflow-hidden relative' : 'p-4 overflow-y-auto'}`}>
+        {/* Dynamic View Content with Mobile Bottom Padding */}
+        <main className={`flex-1 ${activeTab === 'home' ? 'p-0 overflow-hidden relative' : 'p-3.5 sm:p-4 pb-28 overflow-y-auto'}`}>
           {activeTab === 'home' && (
             <HomeScreen
               state={state}
@@ -822,6 +988,8 @@ export default function App() {
               onOpenPremium={() => setShowPremiumModal(true)}
               onOpenPhoneStatus={() => setShowPhoneStatusModal(true)}
               onOpenStudyHub={() => setActiveTab('study')}
+              onOpenScreenShare={() => setShowScreenShareModal(true)}
+              onOpenRemoteControl={() => setShowRemoteControlModal(true)}
               theme={theme}
             />
           )}
@@ -841,6 +1009,7 @@ export default function App() {
                 broadcastSyncState(next);
               }}
               onBroadcastEvent={broadcastSyncEvent}
+              onOpenScreenShare={() => setShowScreenShareModal(true)}
               showToast={showToast}
             />
           )}
@@ -968,6 +1137,109 @@ export default function App() {
           bombData={activeScreenBomb}
           onClose={() => setActiveScreenBomb(null)}
         />
+      )}
+
+      {/* Live WebRTC Screen Share Modal */}
+      <LiveScreenShareModal
+        isOpen={showScreenShareModal}
+        onClose={() => setShowScreenShareModal(false)}
+        currentUserName={currentUser.name}
+        partnerUserName={partnerUser.name}
+        currentUserId={currentUserId}
+        onBroadcastEvent={broadcastSyncEvent}
+        incomingOffer={incomingScreenShareOffer}
+        incomingAnswer={incomingScreenShareAnswer}
+        incomingIce={incomingScreenShareIce}
+        isPartnerSharing={isPartnerScreenSharing}
+        incomingPointer={incomingPointer}
+        showToast={showToast}
+      />
+
+      {/* Couple Remote Control Modal */}
+      <RemoteControlModal
+        isOpen={showRemoteControlModal}
+        onClose={() => setShowRemoteControlModal(false)}
+        currentUserName={currentUser.name}
+        partnerUserName={partnerUser.name}
+        partnerUser={partnerUser}
+        onBroadcastEvent={broadcastSyncEvent}
+        onOpenScreenShare={() => {
+          setShowRemoteControlModal(false);
+          setShowScreenShareModal(true);
+        }}
+        showToast={showToast}
+      />
+
+      {/* Emergency Remote Siren Full-Screen Alarm Overlay */}
+      {incomingSiren && (
+        <div className="fixed inset-0 z-[100] bg-gradient-to-b from-red-950 via-rose-950 to-black text-white flex flex-col items-center justify-center p-6 text-center backdrop-blur-2xl animate-pulse">
+          <div className="w-24 h-24 rounded-full bg-red-600/30 border-4 border-red-500 flex items-center justify-center animate-bounce mb-5 shadow-[0_0_50px_rgba(239,68,68,0.6)]">
+            <BellRing size={52} className="text-white" />
+          </div>
+          <div className="inline-block px-3 py-1 rounded-full bg-red-500 text-white font-black text-xs uppercase tracking-widest mb-3 animate-pulse">
+            🚨 EMERGENCY FIND PHONE SIREN
+          </div>
+          <h1 className="text-2xl font-black mb-2 tracking-wide">
+            {incomingSiren.senderName} is Ringing Your Phone!
+          </h1>
+          <p className="text-xs text-red-200 max-w-xs mb-8 leading-relaxed">
+            Your partner is calling to locate you or urgently wake you up. Tap below to acknowledge and silence the alarm.
+          </p>
+          <button
+            onClick={() => {
+              soundManager.stopRemoteSiren();
+              setIncomingSiren(null);
+              broadcastSyncEvent('REMOTE_RING_ACK', currentUser.name, {});
+              showToast('Siren silenced 🔕');
+            }}
+            className="px-8 py-4 rounded-3xl bg-white hover:bg-slate-100 text-red-600 font-black text-sm shadow-2xl hover:scale-105 active:scale-95 transition flex items-center gap-2"
+          >
+            <VolumeX size={18} />
+            <span>I AM HERE! SILENCE SIREN 🔕</span>
+          </button>
+        </div>
+      )}
+
+      {/* Remote Strobe Screen Flash Overlay */}
+      {incomingFlash && (
+        <div className="fixed inset-0 z-[98] pointer-events-none flex items-center justify-center bg-white/90 animate-pulse">
+          <div className="p-4 rounded-3xl bg-black/85 backdrop-blur-md text-white font-black text-sm flex items-center gap-2 shadow-2xl border border-white/20">
+            <Zap size={22} className="text-amber-400 animate-spin" />
+            <span>⚡ PARTNER FLASH BEACON ACTIVE!</span>
+          </div>
+        </div>
+      )}
+
+      {/* Remote Bedtime / Study Takeover Screen Lock */}
+      {incomingBedtimeLock && (
+        <div className="fixed inset-0 z-[95] bg-gradient-to-b from-slate-950 via-purple-950/90 to-slate-950 text-white flex flex-col items-center justify-center p-6 text-center backdrop-blur-xl animate-fadeIn">
+          <div className="w-20 h-20 rounded-full bg-purple-500/20 border-2 border-purple-400/40 flex items-center justify-center mb-4 shadow-xl">
+            {incomingBedtimeLock.type === 'bedtime' ? (
+              <Moon size={40} className="text-purple-300 animate-pulse" />
+            ) : (
+              <BookOpen size={40} className="text-amber-300 animate-pulse" />
+            )}
+          </div>
+          <h2 className="text-xl font-black mb-1">
+            {incomingBedtimeLock.type === 'bedtime' ? '🌙 Bedtime Mode Activated' : '📖 Study Focus Mode'}
+          </h2>
+          <p className="text-xs text-purple-200 mb-4 font-semibold">
+            Sent with love by <span className="text-rose-400 font-bold">{incomingBedtimeLock.senderName}</span>
+          </p>
+          <div className="p-4 rounded-2xl bg-white/10 border border-white/15 max-w-xs text-xs text-slate-200 mb-8 leading-relaxed shadow-inner">
+            "{incomingBedtimeLock.message}"
+          </div>
+          <button
+            onClick={() => {
+              soundManager.playKissPop();
+              setIncomingBedtimeLock(null);
+              showToast('Screen unlocked 🔓');
+            }}
+            className="px-6 py-3 rounded-2xl bg-white/20 hover:bg-white/30 border border-white/40 text-white font-black text-xs active:scale-95 transition flex items-center gap-2 shadow-lg"
+          >
+            <span>Unlock Screen 🔓</span>
+          </button>
+        </div>
       )}
 
       {/* Floating Action Toast Notification */}

@@ -6,6 +6,9 @@ class SoundManager {
     this.ctx = null;
     this.isMuted = false;
     this.ambientOsc = null;
+    this.sirenInterval = null;
+    this.sirenOsc = null;
+    this.sirenGain = null;
   }
 
   init() {
@@ -275,6 +278,151 @@ class SoundManager {
     } catch (e) {
       console.warn('Ambient sound error', e);
     }
+  }
+
+  // Remote Siren Alarm (Urgent finder / waking alarm)
+  playRemoteSiren() {
+    this.stopRemoteSiren();
+    this.init();
+    if (!this.ctx) return;
+
+    try {
+      // Periodic intense haptic vibration
+      this.triggerVibration([500, 200, 500, 200, 1000]);
+
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      gain.gain.setValueAtTime(0.35, now);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+
+      this.sirenOsc = osc;
+      this.sirenGain = gain;
+
+      // Frequency wobble (siren up/down sweep)
+      let high = false;
+      const wobble = () => {
+        if (!this.ctx || !this.sirenOsc) return;
+        const curTime = this.ctx.currentTime;
+        const targetFreq = high ? 1250 : 650;
+        this.sirenOsc.frequency.cancelScheduledValues(curTime);
+        this.sirenOsc.frequency.linearRampToValueAtTime(targetFreq, curTime + 0.35);
+        high = !high;
+        this.triggerVibration([300, 150]);
+      };
+
+      wobble();
+      this.sirenInterval = setInterval(wobble, 380);
+    } catch (e) {
+      console.warn('Error playing siren:', e);
+    }
+  }
+
+  stopRemoteSiren() {
+    if (this.sirenInterval) {
+      clearInterval(this.sirenInterval);
+      this.sirenInterval = null;
+    }
+    if (this.sirenOsc) {
+      try {
+        this.sirenOsc.stop();
+        this.sirenOsc.disconnect();
+      } catch (e) {}
+      this.sirenOsc = null;
+    }
+    if (this.sirenGain) {
+      try {
+        this.sirenGain.disconnect();
+      } catch (e) {}
+      this.sirenGain = null;
+    }
+  }
+
+  // Futuristic Laser Click Sound (For Remote Pointer)
+  playLaserClick() {
+    this.triggerVibration([40]);
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(1400, now);
+      osc.frequency.exponentialRampToValueAtTime(350, now + 0.08);
+
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } catch (e) {}
+  }
+
+  // Strobe Ping / Flash Sound
+  playStrobePing() {
+    this.triggerVibration([80, 50, 80]);
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    try {
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(880, now);
+
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.07);
+    } catch (e) {}
+  }
+
+  // Soft Peaceful Bedtime Chime
+  playSleepLullaby() {
+    this.triggerVibration([100, 100, 200]);
+    if (this.isMuted) return;
+    this.init();
+    if (!this.ctx) return;
+
+    try {
+      const notes = [392, 440, 523.25, 659.25]; // G4, A4, C5, E5
+      const now = this.ctx.currentTime;
+      notes.forEach((freq, idx) => {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.2);
+
+        gain.gain.setValueAtTime(0.12, now + idx * 0.2);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.2 + 0.9);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now + idx * 0.2);
+        osc.stop(now + idx * 0.2 + 0.95);
+      });
+    } catch (e) {}
   }
 
   stopAmbient() {

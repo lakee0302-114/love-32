@@ -4,9 +4,7 @@ echo ========================================================
 echo       LOVE32 ULTRA - ONLINE CLOUD COUPLE APP
 echo ========================================================
 echo.
-echo Connected to Online Cloud Database (Firebase / Cloud Realtime)
-echo Starting frontend app on http://localhost:5173/ ...
+echo Starting frontend app and opening in browser...
 cd /d "%~dp0"
-start "" "http://localhost:5173/"
-npm.cmd run dev -- --host 127.0.0.1 --port 5173
+cmd.exe /c "npm run dev -- --host 127.0.0.1 --open"
 pause

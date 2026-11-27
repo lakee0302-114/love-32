@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://love32-ultra-cloud.web.app/sitemap.xml

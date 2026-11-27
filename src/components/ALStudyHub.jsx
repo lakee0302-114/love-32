@@ -25,7 +25,8 @@ import {
   Bell,
   Heart,
   ChevronLeft,
-  RotateCw
+  RotateCw,
+  Tv
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { soundManager } from '../utils/audio';
@@ -38,6 +39,7 @@ export default function ALStudyHub({
   partnerUserName,
   onUpdateState,
   onBroadcastEvent,
+  onOpenScreenShare,
   showToast,
 }) {
   const isPartnerA = currentUserId === 'partnerA';
@@ -736,6 +738,37 @@ export default function ALStudyHub({
                   )}
                 </div>
               </div>
+            </div>
+
+            {/* Live Screen Share Feature Card */}
+            <div className="bg-gradient-to-r from-indigo-950/70 via-purple-950/70 to-slate-900 rounded-3xl p-4 shadow-sm border border-indigo-500/30 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                  <Tv size={20} className="stroke-[2.5]" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Live Screen Share</span>
+                    <span className="text-[9px] bg-rose-500/30 text-rose-300 px-1.5 py-0.2 rounded-full font-bold">
+                      A/L Stream
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-slate-300">
+                    Share past papers, notes & discuss questions live!
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  soundManager.playKissPop();
+                  if (onOpenScreenShare) onOpenScreenShare();
+                }}
+                className="py-2 px-3.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 hover:opacity-95 text-white font-bold text-xs shadow-md shadow-indigo-500/30 active:scale-95 transition flex items-center gap-1.5 shrink-0"
+              >
+                <Tv size={14} />
+                <span>Screen Share</span>
+              </button>
             </div>
 
             {/* Romantic Study Interactions & Nudges */}

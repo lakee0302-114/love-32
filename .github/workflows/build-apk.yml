@@ -72,17 +72,17 @@ jobs:
       - name: Create GitHub Release with Direct Download APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.2
-          name: "Love32 Ultra Android APK v1.0.2 (Google Maps & Live Telemetry)"
+          tag_name: v1.0.3
+          name: "Love32 Ultra Android APK v1.0.3 (Firebase RTDB & Luxury Themes)"
           body: |
-            🚀 Official Android APK Release v1.0.2 for Love32 Ultra!
+            🚀 Official Android APK Release v1.0.3 for Love32 Ultra!
             
-            ### ✨ What's New in v1.0.2:
-            - 🗺️ **Full-Screen Google Maps**: Native map tiles centered on Galle with live GPS coordinates and satellite layers.
-            - 🚗 **Live Vehicle Speed Telemetry**: Pin dynamically displays speed when moving in a vehicle (`🚗 45 km/h • In Vehicle >`).
-            - ⚙️ **100% Interactive Settings Menu**: Sub-drawers for My Profile, Partner Profile, Email 2FA, Notification settings, and Password Update.
-            - ☁️ **Permanent Firebase RTDB Sync**: Dual-channel real-time cloud synchronization (`love-32-78b8a`).
-            - ✉️ **Resend Email OTP Gateway**: Direct 6-digit email OTPs delivered to inbox.
+            ### ✨ What's New in v1.0.3:
+            - ☁️ **Live Google Firebase Realtime Database**: Permanent multi-device cloud synchronization (`love32-ultra-cloud`).
+            - 🖤 **5 Luxury Romantic Themes**: Midnight Obsidian, Sakura Blossom, Cosmic Aurora, Sunset Amber, Soft Velvet.
+            - 📱 **Mobile Touch Optimization**: 100dvh safe-area viewport, zero-lag touch response, and authentic mobile feel.
+            - 🛡️ **Zero-AI Commercial Rebranding**: Official release by Luvio Technologies Pte. Ltd. with AES-256 telemetry.
+            - 🗺️ **Full-Screen Distance Radar**: Real-time vehicle speed and distance calculation.
           files: Love32-Ultra.apk
           make_latest: true
         env:

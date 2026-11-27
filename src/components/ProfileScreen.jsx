@@ -232,7 +232,14 @@ export default function ProfileScreen({
 
       {/* Permissions & FAQ Grid (Image 4) */}
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+        <button
+          type="button"
+          onClick={() => {
+            soundManager.playKissPop();
+            onOpenSettings();
+          }}
+          className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 active:scale-95 transition"
+        >
           <div className="flex items-center gap-2">
             <Shield size={16} className="text-indigo-500" />
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Permissions</span>
@@ -240,15 +247,22 @@ export default function ProfileScreen({
           <span className="px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 text-[10px] font-extrabold">
             ⚠️ 9
           </span>
-        </div>
+        </button>
 
-        <div className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
+        <button
+          type="button"
+          onClick={() => {
+            soundManager.playKissPop();
+            onOpenSettings();
+          }}
+          className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 active:scale-95 transition"
+        >
           <div className="flex items-center gap-2">
             <HelpCircle size={16} className="text-purple-500" />
             <span className="text-xs font-bold text-slate-800 dark:text-slate-200">FAQ</span>
           </div>
           <span className="text-slate-400 text-xs">›</span>
-        </div>
+        </button>
       </div>
 
       {/* Account Bind Warning Alert (Image 4) */}

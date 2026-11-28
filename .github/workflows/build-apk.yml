@@ -72,17 +72,16 @@ jobs:
       - name: Create GitHub Release with Direct Download APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.5
-          name: "Love32 Ultra Android APK v1.0.5 (Cloud Auto-Update & Mobile Scroll/Touch Fixes)"
+          tag_name: v1.0.6
+          name: "Love32 Ultra Android APK v1.0.6 (Camera & Mic Permissions & Clean Unjoined State)"
           body: |
-            🚀 Official Android APK Release v1.0.5 for Love32 Ultra!
+            🚀 Official Android APK Release v1.0.6 for Love32 Ultra!
             
-            ### ✨ What's New in v1.0.5:
-            - 🔄 **Cloud Auto-Update Engine**: Permanent real-time auto-synchronization with Firebase Hosting. Future updates apply automatically without APK reinstall!
-            - 👆 **Fixed Button Touch Responsiveness**: Elevated all action controls, Quick Kiss, radar drawer, and modals with mobile tap optimization.
-            - 📜 **Full Vertical Inertia Scrolling**: Smooth 60fps scrolling unlocked across all tabs, memories, radar view, and study room.
-            - ⚡ **Instant Direct Sign In**: No OTP roadblocks or email delays.
-            - ☁️ **Google Firebase RTDB Sync**: Multi-device real-time cloud data sync.
+            ### ✨ What's New in v1.0.6:
+            - 📸 **Live Study Cam & Paper Cam**: Share past papers, notes, or front study camera with voice talk on mobile devices!
+            - 🛡️ **Android Camera & Audio Permissions**: Added explicit CAMERA, RECORD_AUDIO, and MODIFY_AUDIO_SETTINGS in AndroidManifest.
+            - 🤍 **Clean Unjoined State**: Shows honest "No Partner Yet" state with 1-tap WhatsApp Partner Code share instead of mock partner names.
+            - 🔄 **Cloud Auto-Update Engine**: Permanent real-time auto-synchronization with Firebase Hosting.
           files: Love32-Ultra.apk
           make_latest: true
         env:

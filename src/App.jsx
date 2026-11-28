@@ -1188,7 +1188,7 @@ export default function App() {
         isOpen={showScreenShareModal}
         onClose={() => setShowScreenShareModal(false)}
         currentUserName={currentUser.name}
-        partnerUserName={partnerUser.name}
+        partnerUserName={partnerUser.isJoined && partnerUser.name ? partnerUser.name : ''}
         currentUserId={currentUserId}
         onBroadcastEvent={broadcastSyncEvent}
         incomingOffer={incomingScreenShareOffer}
@@ -1197,6 +1197,8 @@ export default function App() {
         isPartnerSharing={isPartnerScreenSharing}
         incomingPointer={incomingPointer}
         showToast={showToast}
+        isPartnerJoined={Boolean(partnerUser.isJoined && partnerUser.name)}
+        partnerCode={roomCode}
       />
 
       {/* Couple Remote Control Modal */}

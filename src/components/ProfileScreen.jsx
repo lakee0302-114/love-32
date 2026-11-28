@@ -25,10 +25,11 @@ export default function ProfileScreen({
 }) {
   const currentUser = currentUserId === 'partnerA' ? state.partnerA : state.partnerB;
   const partnerUser = currentUserId === 'partnerA' ? state.partnerB : state.partnerA;
+  const isPartnerJoined = Boolean(partnerUser && partnerUser.isJoined && partnerUser.name);
 
   // Calculate days together
   const calculateDaysTogether = () => {
-    if (!state.relationshipStartDate) return 1;
+    if (!isPartnerJoined || !state.relationshipStartDate) return '--';
     const start = new Date(state.relationshipStartDate).getTime();
     const now = new Date().getTime();
     const diff = Math.floor((now - start) / (1000 * 60 * 60 * 24));
@@ -78,26 +79,61 @@ export default function ProfileScreen({
         </button>
       </div>
 
-      {/* Couple Avatars Header (Image 4) */}
+      {/* Couple Avatars Header */}
       <div className="text-center py-2 relative">
         <div className="flex items-center justify-center gap-6">
-          {/* Partner Left (e.g. Lakditha / Partner) */}
-          <div className="flex flex-col items-center">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-sky-200 to-indigo-200 dark:from-slate-800 dark:to-indigo-950/80 border-2 border-white dark:border-slate-800 shadow-md flex items-center justify-center text-3xl">
-                {partnerUser.avatar || '🌸'}
+          {/* Partner Left */}
+          {isPartnerJoined ? (
+            <div className="flex flex-col items-center">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-sky-200 to-indigo-200 dark:from-slate-800 dark:to-indigo-950/80 border-2 border-white dark:border-slate-800 shadow-md flex items-center justify-center text-3xl">
+                  {partnerUser.avatar || '🌸'}
+                </div>
               </div>
+              <span className="font-bold text-xs text-slate-800 dark:text-white mt-1.5">
+                {partnerUser.name}
+              </span>
             </div>
-            <span className="font-bold text-xs text-slate-800 dark:text-white mt-1.5">
-              {partnerUser.isJoined && partnerUser.name ? partnerUser.name : 'Lakditha'}
-            </span>
-          </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleShare}
+              className="flex flex-col items-center group cursor-pointer active:scale-95 transition"
+            >
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full border-2 border-dashed border-pink-400 dark:border-pink-500/60 bg-pink-500/10 flex items-center justify-center text-xl shadow-sm group-hover:scale-105 transition">
+                  ➕
+                </div>
+                <span className="absolute -bottom-1 -right-1 text-[8px] px-1 py-0.2 rounded-full bg-rose-500 text-white font-black animate-pulse">
+                  PAIR
+                </span>
+              </div>
+              <span className="font-extrabold text-xs text-rose-500 dark:text-rose-400 mt-1.5">
+                No Partner Yet
+              </span>
+              <span className="text-[10px] text-slate-400 font-medium">
+                Tap to Connect 💕
+              </span>
+            </button>
+          )}
 
-          {/* Floating Romantic Love Emoji Center */}
+          {/* Center Connection Indicator */}
           <div className="flex flex-col items-center justify-center relative -mt-3">
-            <div className="text-lg animate-bounce-subtle">✨</div>
-            <div className="text-xl animate-pulse-heart">💖</div>
-            <div className="text-xs text-rose-500 font-bold mt-0.5">☁️ 💤</div>
+            {isPartnerJoined ? (
+              <>
+                <div className="text-lg animate-bounce-subtle">✨</div>
+                <div className="text-xl animate-pulse-heart">💖</div>
+                <div className="text-xs text-rose-500 font-bold mt-0.5">☁️ 💤</div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-slate-400 font-bold mb-0.5">Partner Code</span>
+                <span className="px-2.5 py-0.5 rounded-full bg-rose-500/15 border border-rose-500/30 text-rose-400 font-mono font-black text-xs shadow-sm">
+                  {partnerCode || 'LOVE-4634'}
+                </span>
+                <span className="text-[9px] text-slate-400 mt-1">1-on-1 Private</span>
+              </div>
+            )}
           </div>
 
           {/* You Right (e.g. Lakee) */}
@@ -110,11 +146,41 @@ export default function ProfileScreen({
             <span className="font-bold text-xs text-slate-800 dark:text-white mt-1.5">
               {currentUser.name || 'Lakee'}
             </span>
+            <span className="text-[10px] text-slate-400 font-medium">
+              You
+            </span>
           </div>
         </div>
       </div>
 
-      {/* 6 Stats Grid Cards (Image 4) */}
+      {/* Partner Connection Banner if Unjoined */}
+      {!isPartnerJoined && (
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-rose-500/15 via-purple-500/15 to-pink-500/15 border-2 border-dashed border-rose-400/50 dark:border-rose-500/40 text-center space-y-2.5 animate-fadeIn">
+          <div className="text-xs font-black text-slate-900 dark:text-white flex items-center justify-center gap-1.5">
+            <span>💕</span>
+            <span>You Have Not Paired with a Partner Yet</span>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+            Love32 Ultra requires pairing with your lover's device to sync live distance, study streams, and love streaks!
+          </p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <span className="text-xs font-bold text-slate-500">Your Partner Code:</span>
+            <span className="text-base font-black font-mono text-rose-500">{partnerCode}</span>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-xs shadow-lg active:scale-95 transition inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Share2 size={14} />
+              <span>Share Code via WhatsApp / Message</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 6 Stats Grid Cards */}
       <div className="grid grid-cols-3 gap-2.5">
         {/* Together for */}
         <div
@@ -131,7 +197,7 @@ export default function ProfileScreen({
             Together for
           </span>
           <span className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
-            {daysTogether}
+            {isPartnerJoined ? daysTogether : '--'}
           </span>
         </div>
 
@@ -144,7 +210,7 @@ export default function ProfileScreen({
             Love Story
           </span>
           <span className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
-            {state.memories?.length || 2}
+            {isPartnerJoined ? (state.memories?.length || 0) : 0}
           </span>
         </div>
 
@@ -157,7 +223,7 @@ export default function ProfileScreen({
             Pet
           </span>
           <span className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
-            Lv.{state.pet?.level || 5}
+            {isPartnerJoined ? `Lv.${state.pet?.level || 1}` : 'Egg 🥚'}
           </span>
         </div>
 
@@ -170,7 +236,7 @@ export default function ProfileScreen({
             MissU
           </span>
           <span className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
-            12
+            {isPartnerJoined ? (state.missYouCount || 0) : 0}
           </span>
         </div>
 
@@ -183,7 +249,7 @@ export default function ProfileScreen({
             Intimacy
           </span>
           <span className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
-            100%
+            {isPartnerJoined ? `${state.intimacyPercent || 100}%` : '0%'}
           </span>
         </div>
 
@@ -196,7 +262,7 @@ export default function ProfileScreen({
             Love Streak
           </span>
           <span className="text-base font-extrabold text-slate-900 dark:text-white mt-0.5">
-            7
+            {isPartnerJoined ? (state.loveStreakDays || 1) : 0}
           </span>
         </div>
       </div>

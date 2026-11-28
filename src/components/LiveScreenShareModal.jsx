@@ -36,8 +36,11 @@ export default function LiveScreenShareModal({
   isPartnerSharing,
   incomingPointer,
   showToast,
+  isPartnerJoined,
+  partnerCode,
 }) {
   const [mode, setMode] = useState('idle'); // 'idle' | 'presenter' | 'viewer'
+  const [streamSource, setStreamSource] = useState('paperCam'); // 'paperCam' | 'faceCam' | 'screen'
   const [withMic, setWithMic] = useState(true);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isAudioMuted, setIsAudioMuted] = useState(false);
@@ -45,6 +48,9 @@ export default function LiveScreenShareModal({
   const [streamDuration, setStreamDuration] = useState(0);
   const [remotePointers, setRemotePointers] = useState([]);
   const [localPointers, setLocalPointers] = useState([]);
+
+  const isDesktop = typeof navigator !== 'undefined' && !(/Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
+  const hasDisplayMedia = typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getDisplayMedia);
 
   const remoteVideoRef = useRef(null);
   const localPreviewRef = useRef(null);
@@ -102,15 +108,20 @@ export default function LiveScreenShareModal({
   };
 
   // Presenter: Start Screen Sharing with OS permission prompt
-  const handleStartSharing = async () => {
+  const handleStartSharing = async (chosenSource = streamSource) => {
     setErrorMsg('');
     soundManager.playKissPop();
 
     try {
-      // 1. Prompt browser/OS for screen capture permission (getDisplayMedia)
+      const cameraFacing = chosenSource === 'faceCam' ? 'user' : 'environment';
+      const actualMode = chosenSource === 'screen' ? 'screen' : (chosenSource === 'paperCam' || chosenSource === 'faceCam') ? 'camera' : 'auto';
+
+      // 1. Prompt browser/OS for screen or camera capture permission
       const stream = await webrtcService.startScreenCapture({
         withAudio: true,
         withMic,
+        mode: actualMode,
+        cameraFacing,
       });
 
       setMode('presenter');
@@ -150,12 +161,17 @@ export default function LiveScreenShareModal({
         });
       }
 
-      if (showToast) showToast('📺 Screen sharing started! Waiting for partner to watch...');
+      if (showToast) {
+        showToast(isPartnerJoined
+          ? `📺 Stream started! Streaming to ${partnerUserName}...`
+          : '📺 Stream active! Share partner code with lover to connect.'
+        );
+      }
     } catch (err) {
       if (err.name === 'NotAllowedError' || err.message?.includes('Permission denied')) {
-        setErrorMsg('Screen share permission was declined in the browser/phone dialog.');
+        setErrorMsg('Camera or Screen permission was declined. Please allow Camera/Mic in phone settings.');
       } else {
-        setErrorMsg(err.message || 'Could not start screen capture.');
+        setErrorMsg(err.message || 'Could not start live stream.');
       }
     }
   };
@@ -382,15 +398,84 @@ export default function LiveScreenShareModal({
                   <Tv size={32} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">Share Your Screen with {partnerUserName}</h3>
+                  <h3 className="text-sm font-black text-white">
+                    {partnerUserName ? `Share Live Stream with ${partnerUserName}` : 'Live Study Room & Screen Sharing'}
+                  </h3>
                   <p className="text-xs text-slate-400 mt-1 leading-relaxed">
                     Solve A/L past papers, discuss problems, show your notes, or watch educational videos together in real-time with WebRTC!
                   </p>
                 </div>
 
-                <div className="pt-2 flex items-center justify-center gap-2 text-[11px] text-indigo-300">
+                {!isPartnerJoined && (
+                  <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-[11px] text-rose-300 space-y-1">
+                    <div className="font-bold flex items-center justify-center gap-1">
+                      <span>⚠️ Partner has not joined yet</span>
+                    </div>
+                    <div className="text-[10px] text-slate-300">
+                      Share Partner Code <span className="font-mono font-bold text-white bg-slate-800 px-1.5 py-0.5 rounded">{partnerCode || 'LOVE-4634'}</span> so they can connect!
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-1 flex items-center justify-center gap-2 text-[11px] text-indigo-300">
                   <ShieldCheck size={14} className="text-emerald-400" />
-                  <span>Requires your explicit Android / Browser permission to start</span>
+                  <span>Encrypted Peer-to-Peer WebRTC Transmission</span>
+                </div>
+              </div>
+
+              {/* Stream Mode Selection (Past Paper Cam / Face Cam / Screen) */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider pl-1">
+                  Choose Live Stream Mode:
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setStreamSource('paperCam')}
+                    className={`p-3 rounded-2xl border text-left transition active:scale-95 cursor-pointer ${
+                      streamSource === 'paperCam'
+                        ? 'bg-indigo-600/25 border-indigo-500 text-white shadow-md'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">📖 📸</div>
+                    <div className="text-xs font-bold text-white">Paper / Book Cam</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Point phone at A/L notes</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setStreamSource('faceCam')}
+                    className={`p-3 rounded-2xl border text-left transition active:scale-95 cursor-pointer ${
+                      streamSource === 'faceCam'
+                        ? 'bg-purple-600/25 border-purple-500 text-white shadow-md'
+                        : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="text-lg mb-1">🤳 ✨</div>
+                    <div className="text-xs font-bold text-white">Study Face Cam</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Study together face-to-face</div>
+                  </button>
+
+                  {hasDisplayMedia && (
+                    <button
+                      type="button"
+                      onClick={() => setStreamSource('screen')}
+                      className={`col-span-2 p-3 rounded-2xl border text-left transition active:scale-95 cursor-pointer ${
+                        streamSource === 'screen'
+                          ? 'bg-rose-600/25 border-rose-500 text-white shadow-md'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">💻</span>
+                        <div>
+                          <div className="text-xs font-bold text-white">Full Screen Share</div>
+                          <div className="text-[10px] text-slate-400">Share computer / tablet screen</div>
+                        </div>
+                      </div>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -398,23 +483,30 @@ export default function LiveScreenShareModal({
               <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2 text-slate-300">
                   <Mic size={16} className="text-indigo-400" />
-                  <span>Include Microphone (Talk while sharing)</span>
+                  <span>Include Microphone (Talk while streaming)</span>
                 </div>
                 <input
                   type="checkbox"
                   checked={withMic}
                   onChange={(e) => setWithMic(e.target.checked)}
-                  className="w-4 h-4 text-indigo-500 accent-indigo-500"
+                  className="w-4 h-4 text-indigo-500 accent-indigo-500 cursor-pointer"
                 />
               </div>
 
               {/* Start Sharing Button */}
               <button
-                onClick={handleStartSharing}
-                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-rose-500 text-white font-black text-xs shadow-xl shadow-indigo-500/25 hover:opacity-95 active:scale-95 transition flex items-center justify-center gap-2"
+                type="button"
+                onClick={() => handleStartSharing()}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-500 to-rose-500 hover:from-indigo-600 hover:to-rose-600 text-white font-black text-xs shadow-xl shadow-indigo-500/25 active:scale-95 transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Tv size={18} />
-                <span>Start Screen Sharing (Ask Permission) 🚀</span>
+                <span>
+                  {streamSource === 'faceCam'
+                    ? 'Start Face Cam Stream 🤳'
+                    : streamSource === 'screen'
+                    ? 'Start Screen Sharing 💻'
+                    : 'Start Study Cam Stream 📖'}
+                </span>
               </button>
             </div>
           )}

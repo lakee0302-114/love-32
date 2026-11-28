@@ -17,39 +17,69 @@ class WebRTCService {
     this.onStreamEndCallback = null;
   }
 
-  // Request browser/OS screen capture permission
-  async startScreenCapture({ withAudio = true, withMic = false } = {}) {
-    if (typeof window === 'undefined' || !navigator.mediaDevices?.getDisplayMedia) {
-      throw new Error('Screen sharing is not supported by this browser/device.');
+  // Request screen or camera media capture for Live Study Room & Screen Sharing
+  async startScreenCapture({ withAudio = true, withMic = true, mode = 'auto', cameraFacing = 'environment' } = {}) {
+    if (typeof window === 'undefined' || !navigator.mediaDevices) {
+      throw new Error('Media devices are not supported on this phone/browser.');
     }
 
     try {
-      // 1. Prompt OS for screen capture permission (Android / Windows / macOS dialog)
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          cursor: 'always',
-          displaySurface: 'monitor',
-          frameRate: { ideal: 30, max: 60 },
-        },
-        audio: withAudio,
-      });
+      let stream = null;
 
-      // 2. Optionally mix in user's microphone so lovers can talk while sharing screen
-      if (withMic && navigator.mediaDevices.getUserMedia) {
+      // 1. Try getDisplayMedia if mode is 'screen' or 'auto' on desktop
+      if ((mode === 'screen' || mode === 'auto') && navigator.mediaDevices.getDisplayMedia) {
         try {
-          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          micStream.getAudioTracks().forEach((track) => {
-            screenStream.addTrack(track);
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            video: {
+              cursor: 'always',
+              displaySurface: 'monitor',
+              frameRate: { ideal: 30, max: 60 },
+            },
+            audio: withAudio,
           });
-        } catch (e) {
-          console.warn('[WebRTC] Microphone permission optional:', e.message);
+        } catch (displayErr) {
+          // If user specifically wanted screen and explicitly denied, rethrow
+          if (mode === 'screen' || displayErr.name === 'NotAllowedError') {
+            throw displayErr;
+          }
+          console.warn('[WebRTC] getDisplayMedia fallback to study camera:', displayErr.message);
         }
       }
 
-      this.localStream = screenStream;
+      // 2. If getDisplayMedia is not available (e.g. Android WebView / mobile phone) or mode is camera:
+      // Fallback seamlessly to Live Study Camera (Paper Cam / Front Cam) with Audio!
+      if (!stream && navigator.mediaDevices.getUserMedia) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: cameraFacing, // 'environment' for past papers / textbook, 'user' for face cam
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 },
+          },
+          audio: withMic,
+        });
+      }
+
+      if (!stream) {
+        throw new Error('Could not access screen or camera. Please grant Camera & Microphone permissions in Android settings.');
+      }
+
+      // Mix in microphone if screen stream didn't have audio
+      if (withMic && mode === 'screen' && navigator.mediaDevices.getUserMedia) {
+        try {
+          const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          micStream.getAudioTracks().forEach((track) => {
+            stream.addTrack(track);
+          });
+        } catch (e) {
+          console.warn('[WebRTC] Microphone permission notice:', e.message);
+        }
+      }
+
+      this.localStream = stream;
 
       // Handle OS level "Stop sharing" button click
-      const videoTrack = screenStream.getVideoTracks()[0];
+      const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.onended = () => {
           this.stopLocalStream();
@@ -57,9 +87,9 @@ class WebRTCService {
         };
       }
 
-      return screenStream;
+      return stream;
     } catch (err) {
-      console.warn('[WebRTC] getDisplayMedia error:', err);
+      console.warn('[WebRTC] capture error:', err);
       throw err;
     }
   }

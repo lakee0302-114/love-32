@@ -1,12 +1,12 @@
 {
-  "version": "1.0.7",
-  "build": 107,
-  "releaseDate": "2026-11-28T18:00:00Z",
-  "apkUrl": "https://github.com/lakee0302-114/love-32/releases/download/v1.0.7/Love32-Ultra.apk",
+  "version": "1.0.8",
+  "build": 108,
+  "releaseDate": "2026-11-28T18:25:00Z",
+  "apkUrl": "https://github.com/lakee0302-114/love-32/releases/download/v1.0.8/Love32-Ultra.apk",
   "features": [
-    "Official Luxury 3D Heart App Launcher Icon with dark obsidian adaptive background",
-    "Clean unjoined partner state on Profile screen (no fake partner name or mock stats)",
-    "Live Study Camera and Paper Cam sharing with real-time audio on mobile devices",
-    "Declared Android Camera, Mic, and Media permissions in AndroidManifest"
+    "Instant Partner Code Pairing Engine with auto-normalization (supports LOVE-4634, love4634, 4634)",
+    "Non-destructive Firebase room state merging (preserves both partners' profiles and live connection)",
+    "Dual-mode Partner Code modal (view code or connect with partner's code directly)",
+    "Quick Partner Connect form on Profile screen and Map view"
   ]
 }

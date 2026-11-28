@@ -72,17 +72,17 @@ jobs:
       - name: Create GitHub Release with Direct Download APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.7
-          name: "Love32 Ultra Android APK v1.0.7 (Official Luxury 3D Heart App Launcher Icon)"
+          tag_name: v1.0.8
+          name: "Love32 Ultra Android APK v1.0.8 (Seamless Partner Code Pairing & Dual-Mode Connect)"
           body: |
-            🚀 Official Android APK Release v1.0.7 for Love32 Ultra!
+            🚀 Official Android APK Release v1.0.8 for Love32 Ultra!
             
-            ### ✨ What's New in v1.0.7:
-            - 💖 **Official Luxury 3D Heart App Launcher Icon**: Replaced default Capacitor launcher logo with an ultra-premium glowing 3D heart emblem and sleek obsidian adaptive background!
-            - 📸 **Live Study Cam & Paper Cam**: Share past papers, notes, or front study camera with voice talk on mobile devices!
-            - 🛡️ **Android Camera & Audio Permissions**: Explicit CAMERA, RECORD_AUDIO, and MODIFY_AUDIO_SETTINGS declared in AndroidManifest.
-            - 🤍 **Clean Unjoined State**: Shows honest "No Partner Yet" state with 1-tap WhatsApp Partner Code share.
-            - 🔄 **Cloud Auto-Update Engine**: Permanent real-time auto-synchronization with Firebase Hosting.
+            ### ✨ What's New in v1.0.8:
+            - 🔗 **Seamless Real-Time Partner Code Pairing**: Added auto-normalization for codes (supports `LOVE-4634`, `love4634`, or simply `4634`).
+            - 🛡️ **Non-Destructive Firebase State Merging**: Preserves both partners' profiles, battery, and live GPS coordinates when pairing.
+            - 💖 **Dual-Mode Partner Code Modal**: View and copy your code OR enter your partner's code directly to pair instantly.
+            - 📱 **Quick Connect Everywhere**: Enter partner code from Profile screen or Map View directly.
+            - 🎨 **Luxury 3D Heart App Launcher Icon & Obsidian Adaptive Theme**.
           files: Love32-Ultra.apk
           make_latest: true
         env:

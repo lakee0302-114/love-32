@@ -25,6 +25,7 @@ import {
   Activity,
   Smile,
   Zap,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 import confetti from 'canvas-confetti';
@@ -78,6 +79,7 @@ export default function GoogleMapView({
   onAddBucketItem,
   partnerCode,
   theme = 'light',
+  onConnectPartnerCode,
 }) {
   const currentUser = currentUserId === 'partnerA' ? state.partnerA : state.partnerB;
   const partnerUser = currentUserId === 'partnerA' ? state.partnerB : state.partnerA;
@@ -100,6 +102,8 @@ export default function GoogleMapView({
   const [moodEmoji, setMoodEmoji] = useState(currentUser?.mood || '😴');
   const [newBucketDream, setNewBucketDream] = useState('');
   const [isLocating, setIsLocating] = useState(false);
+  const [mapInputCode, setMapInputCode] = useState('');
+  const [mapIsConnecting, setMapIsConnecting] = useState(false);
 
   // Anniversary days calculation
   const calculateDaysTogether = () => {
@@ -661,18 +665,53 @@ export default function GoogleMapView({
                 <div className="text-sm font-black font-mono text-rose-600 dark:text-rose-400">
                   Partner Code: {partnerCode}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const shareUrl = `${window.location.origin}?code=${partnerCode}`;
-                    const text = `Connect with me on Love32 Ultra! Partner Code: ${partnerCode} 💕\n${shareUrl}`;
-                    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
-                  }}
-                  className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition inline-flex items-center gap-1.5"
-                >
-                  <Share2 size={13} />
-                  <span>Share Code via WhatsApp</span>
-                </button>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const shareUrl = `${window.location.origin}?code=${partnerCode}`;
+                      const text = `Connect with me on Love32 Ultra! Partner Code: ${partnerCode} 💕\n${shareUrl}`;
+                      window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+                    }}
+                    className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition inline-flex items-center gap-1.5"
+                  >
+                    <Share2 size={13} />
+                    <span>Share Code via WhatsApp</span>
+                  </button>
+                </div>
+
+                {/* Quick Connect Form */}
+                <div className="pt-2 border-t border-rose-500/20 max-w-xs mx-auto space-y-1.5 text-left">
+                  <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block text-center">
+                    Or enter partner's code to connect:
+                  </span>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      placeholder="E.g. LOVE-4634 or 4634"
+                      value={mapInputCode}
+                      onChange={(e) => setMapInputCode(e.target.value)}
+                      className="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-white font-mono text-xs uppercase focus:outline-none focus:border-rose-500"
+                    />
+                    <button
+                      type="button"
+                      disabled={mapIsConnecting || !mapInputCode.trim()}
+                      onClick={async () => {
+                        if (typeof onConnectPartnerCode === 'function' && mapInputCode.trim()) {
+                          setMapIsConnecting(true);
+                          soundManager.playHeartbeat();
+                          const res = await onConnectPartnerCode(mapInputCode.trim());
+                          setMapIsConnecting(false);
+                          if (res) setMapInputCode('');
+                        }
+                      }}
+                      className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 text-white font-bold text-xs shadow active:scale-95 transition disabled:opacity-50 flex items-center gap-1"
+                    >
+                      <LinkIcon size={12} />
+                      <span>{mapIsConnecting ? '...' : 'Connect 💖'}</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>

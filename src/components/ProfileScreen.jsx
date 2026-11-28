@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Settings as SettingsIcon,
   Share2,
@@ -12,6 +12,7 @@ import {
   Flame,
   BookHeart,
   PawPrint,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 
@@ -22,10 +23,13 @@ export default function ProfileScreen({
   onOpenPremium,
   onOpenAnniversary,
   partnerCode,
+  onConnectPartnerCode,
 }) {
   const currentUser = currentUserId === 'partnerA' ? state.partnerA : state.partnerB;
   const partnerUser = currentUserId === 'partnerA' ? state.partnerB : state.partnerA;
   const isPartnerJoined = Boolean(partnerUser && partnerUser.isJoined && partnerUser.name);
+  const [inputCode, setInputCode] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Calculate days together
   const calculateDaysTogether = () => {
@@ -176,6 +180,39 @@ export default function ProfileScreen({
               <Share2 size={14} />
               <span>Share Code via WhatsApp / Message</span>
             </button>
+          </div>
+
+          {/* Quick Connect Form */}
+          <div className="pt-2 border-t border-rose-500/20 max-w-xs mx-auto space-y-1.5 text-left">
+            <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block text-center">
+              Already have your partner's code? Enter it below:
+            </span>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="E.g. LOVE-4634 or 4634"
+                value={inputCode}
+                onChange={(e) => setInputCode(e.target.value)}
+                className="flex-1 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-800 dark:text-white font-mono text-xs uppercase focus:outline-none focus:border-rose-500"
+              />
+              <button
+                type="button"
+                disabled={isConnecting || !inputCode.trim()}
+                onClick={async () => {
+                  if (typeof onConnectPartnerCode === 'function' && inputCode.trim()) {
+                    setIsConnecting(true);
+                    soundManager.playHeartbeat();
+                    const res = await onConnectPartnerCode(inputCode.trim());
+                    setIsConnecting(false);
+                    if (res) setInputCode('');
+                  }
+                }}
+                className="py-2 px-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 text-white font-bold text-xs shadow active:scale-95 transition disabled:opacity-50 flex items-center gap-1"
+              >
+                <LinkIcon size={12} />
+                <span>{isConnecting ? '...' : 'Connect 💖'}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

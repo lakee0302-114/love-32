@@ -82,12 +82,14 @@ export default function SettingsModal({
   onSendQuickKiss,
   showToast = () => {},
   state = {},
+  onConnectPartnerCode,
 }) {
   if (!isOpen) return null;
 
   // Navigation Sub-view state
   // null = main menu | 'my_profile' | 'partner_profile' | 'bind_email' | 'notifications' | 'languages' | 'account_security' | 'startup_password' | 'contact_us' | 'app_version' | 'privacy_security' | 'share_and_win'
   const [activeSubView, setActiveSubView] = useState(null);
+  const [customRoomInput, setCustomRoomInput] = useState('');
 
   // General settings state
   const [advancedMode, setAdvancedMode] = useState(true);
@@ -206,13 +208,13 @@ export default function SettingsModal({
       if (res.ok) {
         const data = await res.json();
         setIsCheckingUpdate(false);
-        setUpdateStatus(`🟢 Current: v1.0.7 • Cloud Auto-Update is Active! Latest updates sync automatically.`);
+        setUpdateStatus(`🟢 Current: v1.0.8 • Cloud Auto-Update is Active! Latest updates sync automatically.`);
         showToast('🟢 App is fully updated & connected to Cloud Auto-Sync!');
         return;
       }
     } catch (e) {}
     setIsCheckingUpdate(false);
-    setUpdateStatus('🟢 You are using Love32 Ultra v1.0.7 (Latest Version)');
+    setUpdateStatus('🟢 You are using Love32 Ultra v1.0.8 (Latest Version)');
     showToast('🟢 App is up to date!');
   };
 
@@ -556,6 +558,37 @@ export default function SettingsModal({
                       <Share2 size={14} />
                       <span>Copy Invite Link</span>
                     </button>
+                  </div>
+
+                  {/* Connect to different partner code */}
+                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1.5 text-left">
+                    <span className="text-[10px] font-bold text-slate-500 block">
+                      Connect to Partner's Code:
+                    </span>
+                    <div className="flex gap-1.5">
+                      <input
+                        type="text"
+                        placeholder="E.g. LOVE-4634 or 4634"
+                        value={customRoomInput}
+                        onChange={(e) => setCustomRoomInput(e.target.value)}
+                        className="flex-1 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-mono uppercase text-slate-800 dark:text-white focus:outline-none focus:border-rose-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (typeof onConnectPartnerCode === 'function' && customRoomInput.trim()) {
+                            const res = await onConnectPartnerCode(customRoomInput.trim());
+                            if (res) {
+                              setCustomRoomInput('');
+                              onClose();
+                            }
+                          }
+                        }}
+                        className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-white font-bold text-xs shadow hover:from-rose-600 transition"
+                      >
+                        Connect 💖
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1009,14 +1042,14 @@ export default function SettingsModal({
                     Love32 Ultra
                   </h3>
                   <p className="text-xs text-rose-500 font-bold mt-0.5">
-                    Version 1.0.7 (Cloud Sync Live)
+                    Version 1.0.8 (Cloud Sync Live)
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-left text-xs space-y-1.5 divide-y divide-slate-100 dark:divide-slate-800">
                   <div className="flex justify-between py-1">
                     <span className="text-slate-500">App Version:</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-200">v1.0.7</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200">v1.0.8</span>
                   </div>
                   <div className="flex justify-between py-1">
                     <span className="text-slate-500">Cloud Auto-Update:</span>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Heart, Volume2, VolumeX, Sparkles, RefreshCw, KeyRound, Copy, Check, LogOut, Settings as SettingsIcon } from 'lucide-react';
+import { Heart, Volume2, VolumeX, Sparkles, RefreshCw, KeyRound, Copy, Check, LogOut, Settings as SettingsIcon, Share2, Link as LinkIcon } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 
 export default function Header({
@@ -11,11 +11,15 @@ export default function Header({
   partnerCode,
   onLogout,
   onOpenSettings,
+  onConnectPartnerCode,
 }) {
   const currentUser = currentUserId === 'partnerA' ? state.partnerA : state.partnerB;
   const partnerUser = currentUserId === 'partnerA' ? state.partnerB : state.partnerA;
   const [showCodeModal, setShowCodeModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [activeCodeTab, setActiveCodeTab] = useState('myCode'); // 'myCode' | 'enterCode'
+  const [partnerInput, setPartnerInput] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const handleCopyCode = () => {
     if (partnerCode) {
@@ -23,6 +27,28 @@ export default function Header({
       soundManager.playKissPop();
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleWhatsAppShare = () => {
+    const origin = window.location.origin;
+    const shareText = `Hey my love! ❤️ Join me on Love32 Ultra.\nOur Partner Code is: ${partnerCode}\nTap here to connect instantly: ${origin}/?code=${partnerCode}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+    window.open(url, '_blank');
+  };
+
+  const handleConnectSubmit = async (e) => {
+    e.preventDefault();
+    if (!partnerInput.trim()) return;
+    if (typeof onConnectPartnerCode === 'function') {
+      setIsConnecting(true);
+      soundManager.playHeartbeat();
+      const success = await onConnectPartnerCode(partnerInput.trim());
+      setIsConnecting(false);
+      if (success) {
+        setShowCodeModal(false);
+        setPartnerInput('');
+      }
     }
   };
 
@@ -117,25 +143,97 @@ export default function Header({
         </div>
       </header>
 
-      {/* Partner Code Modal */}
+      {/* Partner Code Modal: Dual Mode (Share or Connect) */}
       {showCodeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fadeIn">
-          <div className="bg-slate-900 border border-rose-500/30 rounded-3xl p-5 max-w-xs w-full text-center space-y-3">
-            <h4 className="font-bold text-white text-base">Your Partner Code</h4>
-            <p className="text-xs text-slate-400">Share this code with your partner to connect together</p>
-            <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 font-mono font-black text-xl text-rose-300 tracking-wider">
-              {partnerCode}
+          <div className="bg-slate-900 border border-rose-500/30 rounded-3xl p-5 max-w-sm w-full text-center space-y-3.5 shadow-2xl">
+            {/* Mode Switch Tabs */}
+            <div className="flex p-1 bg-slate-950 border border-slate-800 rounded-2xl">
+              <button
+                type="button"
+                onClick={() => setActiveCodeTab('myCode')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition ${
+                  activeCodeTab === 'myCode'
+                    ? 'bg-rose-500 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                My Partner Code
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveCodeTab('enterCode')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition ${
+                  activeCodeTab === 'enterCode'
+                    ? 'bg-sky-500 text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                Connect to Partner
+              </button>
             </div>
-            <button
-              onClick={handleCopyCode}
-              className="w-full py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow"
-            >
-              {copied ? <Check size={14} /> : <Copy size={14} />}
-              <span>{copied ? 'Code Copied!' : 'Copy Partner Code'}</span>
-            </button>
+
+            {activeCodeTab === 'myCode' ? (
+              <div className="space-y-3 animate-fadeIn">
+                <h4 className="font-bold text-white text-base">Your Partner Code</h4>
+                <p className="text-xs text-slate-400">
+                  Share this code with your lover so their device pairs with yours:
+                </p>
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 font-mono font-black text-2xl text-rose-300 tracking-widest shadow-inner">
+                  {partnerCode}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCopyCode}
+                    className="flex-1 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow active:scale-95 transition"
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                    <span>{copied ? 'Copied!' : 'Copy Code'}</span>
+                  </button>
+                  <button
+                    onClick={handleWhatsAppShare}
+                    className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow active:scale-95 transition"
+                  >
+                    <Share2 size={14} />
+                    <span>WhatsApp</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleConnectSubmit} className="space-y-3 animate-fadeIn text-left">
+                <div className="text-center">
+                  <h4 className="font-bold text-white text-base">Enter Partner's Code</h4>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Enter the code sent by your partner to pair instantly:
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <input
+                    type="text"
+                    required
+                    placeholder="E.g. LOVE-4634 or 4634"
+                    value={partnerInput}
+                    onChange={(e) => setPartnerInput(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 rounded-xl px-3.5 py-2.5 text-white font-mono text-sm tracking-wider uppercase focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 block px-1">
+                    Accepts formats like <span className="text-sky-300">LOVE-4634</span> or simply the 4 numbers <span className="text-sky-300">4634</span>.
+                  </span>
+                </div>
+                <button
+                  type="submit"
+                  disabled={isConnecting || !partnerInput.trim()}
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow active:scale-95 transition disabled:opacity-50"
+                >
+                  <LinkIcon size={14} />
+                  <span>{isConnecting ? 'Connecting & Syncing...' : 'Connect to Partner 💖'}</span>
+                </button>
+              </form>
+            )}
+
             <button
               onClick={() => setShowCodeModal(false)}
-              className="w-full py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+              className="w-full py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition"
             >
               Close
             </button>

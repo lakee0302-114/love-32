@@ -28,6 +28,8 @@ import {
   saveAccountToFirebase,
   fetchAccountFromFirebase,
   updatePasswordInFirebase,
+  normalizePartnerCode,
+  fetchRoomStateFromFirebase,
 } from '../utils/firebase';
 import { cloudSync } from '../utils/cloudSync';
 import { sendOtpToGmail } from '../utils/emailService';
@@ -127,7 +129,7 @@ export default function AuthScreen({ onLoginSuccess }) {
       const params = new URLSearchParams(window.location.search);
       const codeFromUrl = params.get('code') || params.get('room');
       if (codeFromUrl) {
-        setPartnerInputCode(codeFromUrl.toUpperCase());
+        setPartnerInputCode(normalizePartnerCode(codeFromUrl));
         setAvatar('🌸'); // default partner avatar
       }
     } catch (e) {}
@@ -442,21 +444,32 @@ export default function AuthScreen({ onLoginSuccess }) {
     }, 700);
   };
 
-  const handleJoinWithPartnerCode = (e) => {
+  const handleJoinWithPartnerCode = async (e) => {
     e.preventDefault();
-    const code = partnerInputCode.trim().toUpperCase();
+    const raw = partnerInputCode.trim();
+    const code = normalizePartnerCode(raw);
 
     if (!code) {
       setErrorMsg('Please enter your partner’s code');
       return;
     }
-    if (code.length < 4) {
-      setErrorMsg('Invalid code format. Codes are usually like LOVE-1234');
+    if (code.length < 5) {
+      setErrorMsg('Invalid code format. Enter a code like LOVE-4634 or 4634');
       return;
     }
 
     setIsSubmitting(true);
     soundManager.playHeartbeat();
+
+    let assignedRole = 'partnerB';
+    try {
+      const existing = await fetchRoomStateFromFirebase(code);
+      if (existing?.partnerA?.isJoined && !existing?.partnerB?.isJoined) {
+        assignedRole = 'partnerB';
+      } else if (!existing?.partnerA?.isJoined && existing?.partnerB?.isJoined) {
+        assignedRole = 'partnerA';
+      }
+    } catch (e) {}
 
     setTimeout(() => {
       try {
@@ -465,14 +478,14 @@ export default function AuthScreen({ onLoginSuccess }) {
       soundManager.playChime();
 
       onLoginSuccess({
-        role: 'partnerB',
+        role: assignedRole,
         email: email.trim(),
         userName: name.trim() || (email.split('@')[0] || 'Partner'),
         userAvatar: avatar,
         partnerCode: code,
         myCode: myPairCode,
       });
-    }, 900);
+    }, 600);
   };
 
   return (

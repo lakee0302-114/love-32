@@ -7,6 +7,19 @@ const FIREBASE_ROOM_STORAGE_KEY = 'love8_firebase_room_code';
 
 export const DEFAULT_ROOM_CODE = 'LOVE-6344';
 
+// Normalize partner codes (e.g. "4634" -> "LOVE-4634", "love4634" -> "LOVE-4634", "love-4634" -> "LOVE-4634")
+export const normalizePartnerCode = (input) => {
+  if (!input) return '';
+  let clean = input.trim().toUpperCase().replace(/\s+/g, '');
+  if (/^\d{4,5}$/.test(clean)) {
+    return `LOVE-${clean}`;
+  }
+  if (/^LOVE\d{4,5}$/.test(clean)) {
+    return clean.replace('LOVE', 'LOVE-');
+  }
+  return clean;
+};
+
 // Real Google Firebase Configuration from Firebase Console
 export const DEFAULT_FIREBASE_CONFIG = {
   apiKey: "AIzaSyAw5BtnkyUlCWzc3u3mLudMWe_s77CUgWU",
@@ -176,10 +189,44 @@ export const updatePasswordInFirebase = async (email, newPassword) => {
   }
 };
 
+// Fetch current room state from Firebase Realtime Database
+export const fetchRoomStateFromFirebase = async (roomCode) => {
+  if (!roomCode) return null;
+  const code = normalizePartnerCode(roomCode);
+  const config = getFirebaseConfig();
+  const baseUrl = config.databaseURL || 'https://love32-ultra-cloud-default-rtdb.firebaseio.com';
+
+  // 1. Direct REST query (instant, 100% reliable)
+  try {
+    const res = await fetch(`${baseUrl}/couples/${encodeURIComponent(code)}/state.json`, { method: 'GET' });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data === 'object') {
+        return data;
+      }
+    }
+  } catch (err) {
+    console.warn('[Firebase REST] Fetch room state error:', err.message);
+  }
+
+  // 2. Firebase SDK fallback
+  if (!firebaseDb) initFirebase();
+  if (firebaseDb) {
+    try {
+      const stateRef = ref(firebaseDb, `couples/${code}/state`);
+      const snap = await get(stateRef);
+      if (snap.exists()) {
+        return snap.val();
+      }
+    } catch (e) {}
+  }
+  return null;
+};
+
 // Real-Time Firebase Sync Service
 class FirebaseSyncService {
   constructor() {
-    this.roomCode = getSavedRoomCode();
+    this.roomCode = normalizePartnerCode(getSavedRoomCode());
     this.stateRef = null;
     this.eventRef = null;
     this.isConnected = false;
@@ -191,9 +238,15 @@ class FirebaseSyncService {
     this.isConnected = Boolean(firebaseDb);
   }
 
+  setRoom(roomCode) {
+    if (!roomCode) return;
+    this.roomCode = normalizePartnerCode(roomCode);
+    saveRoomCode(this.roomCode);
+  }
+
   // Subscribe to real-time couple state in Firebase
   subscribeState(roomCode, onStateChange) {
-    this.roomCode = (roomCode || this.roomCode).toUpperCase();
+    this.roomCode = normalizePartnerCode(roomCode || this.roomCode);
     saveRoomCode(this.roomCode);
 
     if (!firebaseDb) {
@@ -229,9 +282,10 @@ class FirebaseSyncService {
     }
   }
 
-  // Subscribe to real-time live events (Heartbeat, Kiss, Screen Bomb)
+  // Subscribe to real-time live events (Heartbeat, Kiss, Screen Bomb, Partner Joined)
   subscribeEvents(roomCode, onEvent) {
-    this.roomCode = (roomCode || this.roomCode).toUpperCase();
+    this.roomCode = normalizePartnerCode(roomCode || this.roomCode);
+    saveRoomCode(this.roomCode);
 
     if (!firebaseDb) {
       this.init();
@@ -243,7 +297,7 @@ class FirebaseSyncService {
       const unsubscribe = onValue(this.eventRef, (snapshot) => {
         if (snapshot.exists()) {
           const event = snapshot.val();
-          if (event && event.timestamp && Date.now() - event.timestamp < 5000) {
+          if (event && event.timestamp && Date.now() - event.timestamp < 15000) {
             onEvent(event);
           }
         }
@@ -260,33 +314,73 @@ class FirebaseSyncService {
   }
 
   // Push complete or partial state update to Firebase Realtime Database
-  async updateState(newState) {
-    if (!firebaseDb) this.init();
-    if (!firebaseDb) return;
+  async updateState(newState, targetRoom) {
+    const room = normalizePartnerCode(targetRoom || this.roomCode || getSavedRoomCode());
+    if (!room) return;
+    this.roomCode = room;
+    saveRoomCode(room);
 
+    const config = getFirebaseConfig();
+    const baseUrl = config.databaseURL || 'https://love32-ultra-cloud-default-rtdb.firebaseio.com';
+
+    // 1. Direct REST PUT (bulletproof HTTP)
     try {
-      const stateRef = ref(firebaseDb, `couples/${this.roomCode}/state`);
-      await set(stateRef, newState);
+      await fetch(`${baseUrl}/couples/${encodeURIComponent(room)}/state.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newState),
+      });
     } catch (err) {
-      console.warn('[Firebase] UpdateState warning:', err.message);
+      console.warn('[Firebase REST] UpdateState error:', err.message);
+    }
+
+    // 2. Firebase SDK
+    if (!firebaseDb) this.init();
+    if (firebaseDb) {
+      try {
+        const stateRef = ref(firebaseDb, `couples/${room}/state`);
+        await set(stateRef, newState);
+      } catch (err) {
+        console.warn('[Firebase SDK] UpdateState warning:', err.message);
+      }
     }
   }
 
-  // Send real-time event to Firebase (Heartbeat, Kiss, Screen Bomb)
-  async pushEvent(type, senderName, payload = {}) {
-    if (!firebaseDb) this.init();
-    if (!firebaseDb) return;
+  // Send real-time event to Firebase (Heartbeat, Kiss, Screen Bomb, Partner Joined)
+  async pushEvent(type, senderName, payload = {}, targetRoom) {
+    const room = normalizePartnerCode(targetRoom || this.roomCode || getSavedRoomCode());
+    if (!room) return;
+    this.roomCode = room;
+    saveRoomCode(room);
 
+    const eventObj = {
+      type,
+      senderName,
+      payload,
+      timestamp: Date.now(),
+    };
+
+    const config = getFirebaseConfig();
+    const baseUrl = config.databaseURL || 'https://love32-ultra-cloud-default-rtdb.firebaseio.com';
+
+    // 1. Direct REST PUT
     try {
-      const eventRef = ref(firebaseDb, `couples/${this.roomCode}/latestEvent`);
-      await set(eventRef, {
-        type,
-        senderName,
-        payload,
-        timestamp: Date.now(),
+      await fetch(`${baseUrl}/couples/${encodeURIComponent(room)}/latestEvent.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventObj),
       });
-    } catch (err) {
-      console.warn('[Firebase] PushEvent warning:', err.message);
+    } catch (err) {}
+
+    // 2. Firebase SDK
+    if (!firebaseDb) this.init();
+    if (firebaseDb) {
+      try {
+        const eventRef = ref(firebaseDb, `couples/${room}/latestEvent`);
+        await set(eventRef, eventObj);
+      } catch (err) {
+        console.warn('[Firebase SDK] PushEvent warning:', err.message);
+      }
     }
   }
 }

@@ -54,6 +54,7 @@ export default function HomeScreen({
   onOpenScreenShare,
   onOpenRemoteControl,
   theme,
+  onConnectPartnerCode,
 }) {
   const [viewMode, setViewMode] = useState('googleMap'); // 'googleMap' (Default - Love8 Google Map) | 'classicRadar'
   const currentUser = currentUserId === 'partnerA' ? state.partnerA : state.partnerB;
@@ -165,6 +166,7 @@ export default function HomeScreen({
           onAddBucketItem={onAddBucketItem}
           partnerCode={partnerCode}
           theme={theme}
+          onConnectPartnerCode={onConnectPartnerCode}
         />
 
         {/* Sleek Mobile Floating Quick Action Capsule */}

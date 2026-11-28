@@ -1,6 +1,6 @@
 // Real-Time Cloud Auto-Update Engine for Love32 Ultra
-export const CURRENT_APP_VERSION = '1.0.7';
-export const CURRENT_BUILD_NUMBER = 107;
+export const CURRENT_APP_VERSION = '1.0.8';
+export const CURRENT_BUILD_NUMBER = 108;
 
 let updateCheckInterval = null;
 

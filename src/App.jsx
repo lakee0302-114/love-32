@@ -27,7 +27,7 @@ import {
   subscribeToBroadcast,
 } from './utils/storage';
 import { cloudSync } from './utils/cloudSync';
-import { firebaseSync, getSavedRoomCode, saveRoomCode } from './utils/firebase';
+import { firebaseSync, getSavedRoomCode, saveRoomCode, normalizePartnerCode, fetchRoomStateFromFirebase } from './utils/firebase';
 import { monitorPhoneBattery, monitorLiveLocationAndSpeed, calculateDistanceKm } from './utils/deviceSensors';
 import { soundManager } from './utils/audio';
 import { CURRENT_APP_VERSION, startAutoUpdateWatcher, applyUpdateNow } from './utils/autoUpdater';
@@ -111,23 +111,155 @@ export default function App() {
   };
 
   // Dual Sync Engine: High-speed WebSocket relay + Official Google Firebase Realtime Database
-  const broadcastSyncState = (nextState) => {
+  const broadcastSyncState = (nextState, targetRoom) => {
     if (!nextState) return;
+    const room = normalizePartnerCode(targetRoom || roomCode);
     try {
       cloudSync.updateState(nextState);
     } catch (e) {}
     try {
-      firebaseSync.updateState(nextState);
+      firebaseSync.updateState(nextState, room);
     } catch (e) {}
   };
 
-  const broadcastSyncEvent = (type, senderName, payload = {}) => {
+  const broadcastSyncEvent = (type, senderName, payload = {}, targetRoom) => {
+    const room = normalizePartnerCode(targetRoom || roomCode);
     try {
       cloudSync.pushEvent(type, senderName, payload);
     } catch (e) {}
     try {
-      firebaseSync.pushEvent(type, senderName, payload);
+      firebaseSync.pushEvent(type, senderName, payload, room);
     } catch (e) {}
+  };
+
+  // Connect or switch to a Partner Code seamlessly in real time
+  const handleConnectPartnerCode = async (rawCode) => {
+    const code = normalizePartnerCode(rawCode);
+    if (!code || code.length < 5) {
+      showToast('⚠️ Please enter a valid Partner Code (e.g. LOVE-4634 or 4634)');
+      return false;
+    }
+
+    showToast(`🔄 Connecting to Partner Code ${code}...`);
+    try {
+      // 1. Update room code references
+      setRoomCode(code);
+      saveRoomCode(code);
+      firebaseSync.setRoom(code);
+      cloudSync.subscribeRoom(code);
+
+      // 2. Fetch existing room data from Firebase
+      const existing = await fetchRoomStateFromFirebase(code);
+      let assignedRole = currentUserId || 'partnerB';
+      let nextState;
+
+      if (existing && typeof existing === 'object') {
+        const pAJoined = Boolean(existing.partnerA?.isJoined && existing.partnerA?.name);
+        const pBJoined = Boolean(existing.partnerB?.isJoined && existing.partnerB?.name);
+
+        if (pAJoined && !pBJoined) {
+          // Room host is partnerA, we join as partnerB
+          assignedRole = 'partnerB';
+          setCurrentUserId('partnerB');
+          nextState = {
+            ...existing,
+            isPartnerConnected: true,
+            partnerA: existing.partnerA,
+            partnerB: {
+              ...(existing.partnerB || {}),
+              name: session?.userName || state.partnerB?.name || 'Partner',
+              avatar: session?.userAvatar || state.partnerB?.avatar || '💖',
+              isJoined: true,
+              status: 'Connected with partner 💕',
+              lastActive: 'Just now',
+            },
+          };
+        } else if (!pAJoined && pBJoined) {
+          // partnerB is host, we join as partnerA
+          assignedRole = 'partnerA';
+          setCurrentUserId('partnerA');
+          nextState = {
+            ...existing,
+            isPartnerConnected: true,
+            partnerB: existing.partnerB,
+            partnerA: {
+              ...(existing.partnerA || {}),
+              name: session?.userName || state.partnerA?.name || 'Partner',
+              avatar: session?.userAvatar || state.partnerA?.avatar || '🤴',
+              isJoined: true,
+              status: 'Connected with partner 💕',
+              lastActive: 'Just now',
+            },
+          };
+        } else {
+          // Both or custom
+          nextState = {
+            ...existing,
+            isPartnerConnected: Boolean(existing.partnerA?.isJoined || existing.partnerB?.isJoined),
+            [assignedRole]: {
+              ...(existing[assignedRole] || {}),
+              name: session?.userName || state[assignedRole]?.name || 'Partner',
+              avatar: session?.userAvatar || state[assignedRole]?.avatar || (assignedRole === 'partnerA' ? '🤴' : '💖'),
+              isJoined: true,
+              status: 'Connected with partner 💕',
+              lastActive: 'Just now',
+            },
+          };
+        }
+      } else {
+        // Fresh room
+        nextState = {
+          ...state,
+          [assignedRole]: {
+            ...state[assignedRole],
+            name: session?.userName || state[assignedRole]?.name || 'Lakee',
+            avatar: session?.userAvatar || state[assignedRole]?.avatar || '🤴',
+            isJoined: true,
+            status: 'Host joined ✨',
+          },
+        };
+      }
+
+      // 3. Update session in storage
+      if (session) {
+        const updatedSession = { ...session, partnerCode: code, role: assignedRole };
+        setSession(updatedSession);
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedSession));
+      }
+
+      // 4. Update local state
+      setState(nextState);
+
+      // 5. Broadcast to Firebase and MQTT
+      await firebaseSync.updateState(nextState, code);
+      cloudSync.updateState(nextState);
+
+      const myName = nextState[assignedRole]?.name || session?.userName || 'Partner';
+      broadcastSyncEvent('PARTNER_JOINED', myName, {
+        role: assignedRole,
+        name: myName,
+        avatar: nextState[assignedRole]?.avatar || '💖',
+      }, code);
+
+      soundManager.playChime();
+      soundManager.triggerVibration([100, 50, 100, 50, 200]);
+      try {
+        confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
+      } catch (e) {}
+
+      const otherRole = assignedRole === 'partnerA' ? 'partnerB' : 'partnerA';
+      const otherName = nextState[otherRole]?.name;
+      if (otherName) {
+        showToast(`🎉 Connected to ${otherName} in Room ${code}! 💖`);
+      } else {
+        showToast(`💖 Connected to Room ${code}! Waiting for partner... ⏳`);
+      }
+      return true;
+    } catch (err) {
+      console.error('[handleConnectPartnerCode] error:', err);
+      showToast('⚠️ Error connecting to room');
+      return false;
+    }
   };
 
   const handleSaveAnniversary = (dateStr) => {
@@ -148,57 +280,86 @@ export default function App() {
   };
 
   // Handle Login & Pairing Completion
-  const handleLoginSuccess = (authData) => {
+  const handleLoginSuccess = async (authData) => {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authData));
     setSession(authData);
-    const assignedRole = authData.role || 'partnerA';
-    const isHost = assignedRole === 'partnerA';
-    const otherRole = isHost ? 'partnerB' : 'partnerA';
+    let assignedRole = authData.role || 'partnerA';
     setCurrentUserId(assignedRole);
-    setRoomCode(authData.partnerCode);
-    saveRoomCode(authData.partnerCode);
+    const code = normalizePartnerCode(authData.partnerCode);
+    setRoomCode(code);
+    saveRoomCode(code);
+    firebaseSync.setRoom(code);
+    cloudSync.subscribeRoom(code);
 
-    // Update active user profile and initialize partner as unjoined until they connect
-    let nextState;
-    setState((prev) => {
-      nextState = {
-        ...prev,
-        [assignedRole]: {
-          ...prev[assignedRole],
-          name: authData.userName || prev[assignedRole].name,
-          avatar: authData.userAvatar || prev[assignedRole].avatar,
-          isJoined: true,
-        },
-        [otherRole]: prev[otherRole]?.isJoined
-          ? prev[otherRole]
-          : {
-              ...prev[otherRole],
-              name: '',
-              isJoined: false,
-              battery: null,
-              status: 'Waiting to connect... ⏳',
-              speedKmH: 0,
-              activity: 'Not connected',
-              coords: null,
+    let nextState = { ...state };
+    try {
+      const existing = await fetchRoomStateFromFirebase(code);
+      if (existing && typeof existing === 'object') {
+        const pAJoined = Boolean(existing.partnerA?.isJoined && existing.partnerA?.name);
+        const pBJoined = Boolean(existing.partnerB?.isJoined && existing.partnerB?.name);
+
+        if (pAJoined && !pBJoined && assignedRole === 'partnerB') {
+          nextState = {
+            ...existing,
+            isPartnerConnected: true,
+            partnerA: existing.partnerA,
+            partnerB: {
+              ...(existing.partnerB || {}),
+              name: authData.userName || 'Partner',
+              avatar: authData.userAvatar || '💖',
+              isJoined: true,
+              status: 'Just connected ✨',
             },
-        distanceKm: prev[otherRole]?.isJoined ? prev.distanceKm : null,
-      };
-      return nextState;
-    });
+          };
+        } else if (!pAJoined && pBJoined && assignedRole === 'partnerA') {
+          nextState = {
+            ...existing,
+            isPartnerConnected: true,
+            partnerB: existing.partnerB,
+            partnerA: {
+              ...(existing.partnerA || {}),
+              name: authData.userName || 'Host',
+              avatar: authData.userAvatar || '🤴',
+              isJoined: true,
+              status: 'Just connected ✨',
+            },
+          };
+        } else {
+          nextState = {
+            ...existing,
+            [assignedRole]: {
+              ...(existing[assignedRole] || {}),
+              name: authData.userName || 'You',
+              avatar: authData.userAvatar || (assignedRole === 'partnerA' ? '🤴' : '💖'),
+              isJoined: true,
+              status: 'Online 💕',
+            },
+          };
+        }
+      } else {
+        nextState = {
+          ...state,
+          [assignedRole]: {
+            ...state[assignedRole],
+            name: authData.userName || 'You',
+            avatar: authData.userAvatar || (assignedRole === 'partnerA' ? '🤴' : '💖'),
+            isJoined: true,
+          },
+        };
+      }
+    } catch (e) {}
 
-    // Connect to room and announce presence
-    cloudSync.subscribeRoom(authData.partnerCode);
+    setState(nextState);
+    await firebaseSync.updateState(nextState, code);
+    cloudSync.updateState(nextState);
+
     broadcastSyncEvent('PARTNER_JOINED', authData.userName, {
       role: assignedRole,
       name: authData.userName,
       avatar: authData.userAvatar,
-    });
+    }, code);
 
-    if (nextState) {
-      broadcastSyncState(nextState);
-    }
-
-    showToast(`Welcome ${authData.userName}! Connected to Room ${authData.partnerCode} 💖`);
+    showToast(`Welcome ${authData.userName}! Connected to Room ${code} 💖`);
   };
 
   const handleLogout = () => {
@@ -392,24 +553,41 @@ export default function App() {
     const unsubFirebaseState = firebaseSync.subscribeState(activeRoom, (remoteState) => {
       if (remoteState && typeof remoteState === 'object') {
         setState((prev) => {
-          const incomingPartnerA = remoteState.partnerA || {};
-          const incomingPartnerB = remoteState.partnerB || {};
+          const myRole = currentUserId || 'partnerA';
+          const partnerRole = myRole === 'partnerA' ? 'partnerB' : 'partnerA';
 
-          const cleanPartnerA =
-            incomingPartnerA.name === 'Kasun'
-              ? { ...incomingPartnerA, name: '', isJoined: false }
-              : incomingPartnerA;
-          const cleanPartnerB =
-            incomingPartnerB.name === 'Nethmi' || !incomingPartnerB.isJoined
-              ? { ...incomingPartnerB, name: '', isJoined: false, battery: null, speedKmH: 0 }
-              : incomingPartnerB;
+          const remoteMy = remoteState[myRole] || {};
+          const remotePartner = remoteState[partnerRole] || {};
 
-          const isBothJoined = Boolean(cleanPartnerA.isJoined && cleanPartnerB.isJoined);
+          // Never unjoin or wipe our own active user profile
+          const mergedMy = {
+            ...prev[myRole],
+            ...remoteMy,
+            name: prev[myRole]?.name || remoteMy.name || 'You',
+            avatar: prev[myRole]?.avatar || remoteMy.avatar || (myRole === 'partnerA' ? '🤴' : '💖'),
+            isJoined: prev[myRole]?.isJoined ?? true,
+          };
+
+          // Filter legacy Kasun/Nethmi names if they ever come from old rooms
+          const cleanPartnerName = (remotePartner.name === 'Nethmi' || remotePartner.name === 'Kasun')
+            ? (prev[partnerRole]?.name || '')
+            : (remotePartner.name || prev[partnerRole]?.name || '');
+
+          const mergedPartner = {
+            ...prev[partnerRole],
+            ...remotePartner,
+            name: cleanPartnerName,
+            avatar: remotePartner.avatar || prev[partnerRole]?.avatar || (partnerRole === 'partnerA' ? '🤴' : '💖'),
+            isJoined: Boolean(remotePartner.isJoined && cleanPartnerName),
+          };
+
+          const isBothJoined = Boolean(mergedMy.isJoined && mergedPartner.isJoined && mergedPartner.name);
 
           return {
             ...prev,
-            partnerA: { ...prev.partnerA, ...cleanPartnerA },
-            partnerB: { ...prev.partnerB, ...cleanPartnerB },
+            [myRole]: mergedMy,
+            [partnerRole]: mergedPartner,
+            isPartnerConnected: isBothJoined,
             distanceKm: isBothJoined ? (remoteState.distanceKm ?? prev.distanceKm) : null,
             pet: remoteState.pet ? { ...prev.pet, ...remoteState.pet } : prev.pet,
             memories: remoteState.memories || prev.memories,
@@ -427,7 +605,29 @@ export default function App() {
       const currentName = currentUserId === 'partnerA' ? state.partnerA.name : state.partnerB.name;
       if (event.senderName === currentName) return;
 
-      if (event.type === 'HEARTBEAT') {
+      if (event.type === 'PARTNER_JOINED') {
+        soundManager.playChime();
+        soundManager.triggerVibration([100, 50, 100, 50, 200]);
+        try {
+          confetti({ particleCount: 90, spread: 80 });
+        } catch (e) {}
+        showToast(`🎉 ${event.senderName} just connected with your Partner Code! 💖`);
+
+        const otherRole = event.payload?.role || (currentUserId === 'partnerA' ? 'partnerB' : 'partnerA');
+        setState((prev) => ({
+          ...prev,
+          isPartnerConnected: true,
+          relationshipStartDate: prev.relationshipStartDate || new Date().toISOString(),
+          [otherRole]: {
+            ...prev[otherRole],
+            name: event.payload?.name || event.senderName,
+            avatar: event.payload?.avatar || prev[otherRole].avatar,
+            isJoined: true,
+            status: 'Connected 💕',
+            lastActive: 'Just now',
+          },
+        }));
+      } else if (event.type === 'HEARTBEAT') {
         soundManager.playHeartbeat();
         showToast(`💓 ${event.senderName} sent you a heartbeat!`);
       } else if (event.type === 'KISS') {
@@ -998,6 +1198,7 @@ export default function App() {
             partnerCode={roomCode}
             onLogout={handleLogout}
             onOpenSettings={() => setShowSettingsModal(true)}
+            onConnectPartnerCode={handleConnectPartnerCode}
           />
         )}
 
@@ -1035,6 +1236,7 @@ export default function App() {
               onOpenScreenShare={() => setShowScreenShareModal(true)}
               onOpenRemoteControl={() => setShowRemoteControlModal(true)}
               theme={theme}
+              onConnectPartnerCode={handleConnectPartnerCode}
             />
           )}
 
@@ -1115,6 +1317,7 @@ export default function App() {
               onOpenPremium={() => setShowPremiumModal(true)}
               onOpenAnniversary={() => setShowAnniversaryModal(true)}
               partnerCode={roomCode}
+              onConnectPartnerCode={handleConnectPartnerCode}
             />
           )}
         </main>
@@ -1151,6 +1354,7 @@ export default function App() {
         onSendQuickKiss={handleSendQuickKiss}
         showToast={showToast}
         state={state}
+        onConnectPartnerCode={handleConnectPartnerCode}
       />
 
       {/* What Premium Includes Modal (Matches Image 1) */}
